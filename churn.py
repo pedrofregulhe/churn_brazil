@@ -810,13 +810,18 @@ def main():
         delta_color_class_yoy = "positive" if absolute_diff_yoy < 0 else "negative"
         st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Variation vs 2025</div><div class="kpi-value {delta_color_class_yoy}">{display_value_yoy}</div>{percentage_text_yoy}</div>""",unsafe_allow_html=True)
     with col9:
-        otl_churn = otl_projections.get("OTL Churn", 0)
+        if projecao and projecao.get("cards"):
+            otl_churn_str = str(projecao["cards"].get("executado", {}).get("budget", 0))
+            otl_backlog_str = str(projecao["cards"].get("backlog", {}).get("budget", 0))
+        else:
+            otl_churn_str = f'{otl_projections.get("OTL Churn", 0):,.0f}'.replace(",", ".")
+            otl_backlog_str = f'{otl_projections.get("OTL Backlog", 0):,.0f}'.replace(",", ".")
+
         otl_churn_op = otl_projections.get("OTL Churn Operacional", 0)
-        otl_backlog = otl_projections.get("OTL Backlog", 0)
-        html_content = f"""<div class="otl-box"><div class="otl-title">Budget Current Month</div><div class="otl-item"><span>Churn Ex.:</span><span class="otl-value">{otl_churn:,.0f}</span></div>"""
-        if otl_churn_op > 0: html_content += f'<div class="otl-item"><span>Churn Op.:</span><span class="otl-value">{otl_churn_op:,.0f}</span></div>'
-        html_content += f'<div class="otl-item"><span>Backlog:</span><span class="otl-value">{otl_backlog:,.0f}</span></div></div>'
-        st.markdown(html_content.replace(",","."), unsafe_allow_html=True)
+        html_content = f"""<div class="otl-box"><div class="otl-title">Budget Current Month</div><div class="otl-item"><span>Churn Ex.:</span><span class="otl-value">{otl_churn_str}</span></div>"""
+        if otl_churn_op > 0: html_content += f'<div class="otl-item"><span>Churn Op.:</span><span class="otl-value">{otl_churn_op:,.0f}</span></div>'.replace(",", ".")
+        html_content += f'<div class="otl-item"><span>Backlog:</span><span class="otl-value">{otl_backlog_str}</span></div></div>'
+        st.markdown(html_content, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
     
