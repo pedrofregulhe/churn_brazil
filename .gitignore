@@ -1,0 +1,16 @@
+# Arquivos de ambiente
+.env
+
+# Arquivos Python ignorados a pedido
+projecao_churn.py
+projeção_churn.py
+atualizar_churn.py
+
+# Arquivos gerados pelo Python (cache)
+__pycache__/
+*.pyc
+
+# Arquivos de dados (opcional, adicione aqui se não quiser subir planilhas pesadas, mas não coloquei por padrão)
+# *.xlsx
+# *.json
+# *.txt
