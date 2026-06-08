@@ -168,7 +168,8 @@ def _proj_card_dual(title, d, pct=False):
 def _proj_card_single(title, value):
     """Card branco com um único número em destaque."""
     return (f"<div class='proj-card'><div class='proj-title'>{title}</div>"
-            f"<div class='proj-row budget' style='justify-content:center;border-top:none;margin-top:0;padding-top:10px;'>"
+            f"<div class='proj-row' style='visibility:hidden;'><span class='lbl'>-</span><span class='val'>-</span></div>"
+            f"<div class='proj-row budget' style='justify-content:center;border-top:1px dashed transparent;'>"
             f"<span class='val' style='font-size:1.25rem;'>{value}</span></div></div>")
 
 
