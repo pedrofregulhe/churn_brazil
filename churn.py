@@ -682,17 +682,17 @@ def main():
         selected_months_option = st.multiselect("Select Month(s)", ["All"] + all_months, default=_default_months)
         selected_months = all_months if "All" in selected_months_option or not selected_months_option else selected_months_option
 
-        all_churn_types_churn = sorted(df_churn['Tipo de Churn'].astype(str).unique().tolist()) if 'Tipo de Churn' in df_churn.columns and not df_churn['Tipo de Churn'].isnull().all() else []
-        all_churn_types_backlog = sorted(df_backlog_raw['Tipo de Churn Backlog'].astype(str).unique().tolist()) if 'Tipo de Churn Backlog' in df_backlog_raw.columns and not df_backlog_raw['Tipo de Churn Backlog'].isnull().all() else []
+        all_churn_types_churn = sorted([str(x) for x in df_churn['Tipo de Churn'].dropna().unique()]) if 'Tipo de Churn' in df_churn.columns and not df_churn['Tipo de Churn'].isnull().all() else []
+        all_churn_types_backlog = sorted([str(x) for x in df_backlog_raw['Tipo de Churn Backlog'].dropna().unique()]) if 'Tipo de Churn Backlog' in df_backlog_raw.columns and not df_backlog_raw['Tipo de Churn Backlog'].isnull().all() else []
         all_churn_types = sorted(list(set(all_churn_types_churn + all_churn_types_backlog)))
-        all_churn_types = [t for t in all_churn_types if t not in ['nan', 'None', '']]
+        all_churn_types = [t for t in all_churn_types if t not in ['nan', 'None', '', '<NA>']]
         selected_churn_type_option = st.radio("Select Churn Type", ["All"] + all_churn_types)
         selected_churn_types = all_churn_types if selected_churn_type_option == "All" else [selected_churn_type_option]
 
-        all_client_types_churn = sorted(df_churn['Tipo de Cliente'].astype(str).unique().tolist()) if 'Tipo de Cliente' in df_churn.columns and not df_churn['Tipo de Cliente'].isnull().all() else []
-        all_client_types_backlog = sorted(df_backlog_raw['Tipo de Cliente Backlog'].astype(str).unique().tolist()) if 'Tipo de Cliente Backlog' in df_backlog_raw.columns and not df_backlog_raw['Tipo de Cliente Backlog'].isnull().all() else []
+        all_client_types_churn = sorted([str(x) for x in df_churn['Tipo de Cliente'].dropna().unique()]) if 'Tipo de Cliente' in df_churn.columns and not df_churn['Tipo de Cliente'].isnull().all() else []
+        all_client_types_backlog = sorted([str(x) for x in df_backlog_raw['Tipo de Cliente Backlog'].dropna().unique()]) if 'Tipo de Cliente Backlog' in df_backlog_raw.columns and not df_backlog_raw['Tipo de Cliente Backlog'].isnull().all() else []
         all_client_types = sorted(list(set(all_client_types_churn + all_client_types_backlog)))
-        all_client_types = [c for c in all_client_types if c not in ['nan', 'None', '']]
+        all_client_types = [c for c in all_client_types if c not in ['nan', 'None', '', '<NA>']]
         selected_client_type_option_radio = st.radio("Select Client Type(s)", ["All"] + all_client_types)
         selected_client_types = all_client_types if selected_client_type_option_radio == "All" else [selected_client_type_option_radio]
 
