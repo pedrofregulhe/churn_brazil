@@ -2,34 +2,34 @@
   "mes": 6,
   "ano": 2026,
   "nome_mes": "Junho",
-  "gerado_em": "11/06/2026 01:07",
+  "gerado_em": "12/06/2026 08:41",
   "base_ativa": "100.814",
   "pct_insucesso": "30,00%",
   "cards": {
     "executado": {
-      "real": "238",
-      "budget": "848",
-      "real_pct": "0,24%",
-      "budget_pct": "0,84%"
+      "real": "266",
+      "budget": "862",
+      "real_pct": "0,26%",
+      "budget_pct": "0,86%"
     },
     "criado": {
-      "real": "360",
-      "budget": "982",
-      "real_pct": "0,36%",
-      "budget_pct": "0,97%"
+      "real": "516",
+      "budget": "1.290",
+      "real_pct": "0,51%",
+      "budget_pct": "1,28%"
     },
     "backlog": {
-      "real": "2.330",
-      "budget": "2.341"
+      "real": "2.404",
+      "budget": "2.582"
     },
     "receita": {
-      "real": "R$ 26,1 K",
-      "budget": "R$ 93,2 K"
+      "real": "R$ 29,2 K",
+      "budget": "R$ 94,6 K"
     },
-    "anual": "R$ 652,1 K",
+    "anual": "R$ 662,4 K",
     "ytd": {
       "real": "R$ 6,3 M",
-      "budget": "R$ 12,5 M"
+      "budget": "R$ 12,6 M"
     }
   },
   "tabela": [
@@ -70,11 +70,11 @@
     },
     {
       "nome": "Junho",
-      "receita_mes": "R$ 93,2 K",
-      "tkm": "R$ 109,78",
-      "receita_ano": "R$ 652,1 K",
+      "receita_mes": "R$ 94,6 K",
+      "tkm": "R$ 109,72",
+      "receita_ano": "R$ 662,4 K",
       "atual": true
     }
   ],
-  "texto": "Projeção de Fechamento — Junho/2026\ngerado em 11/06/2026 01:07\n\nChurn Executado: 238 (0,24%) | Budget: 848 (0,84%)\nChurn Criado: 360 (0,36%) | Budget: 982 (0,97%)\nBacklog Geral: 2.330 | Budget: 2.341\n\nReceita Churn: R$ 26,1 K | Budget: R$ 93,2 K\nReceita Churn Junho Anual: R$ 652,1 K\nReceita Churn YTD: R$ 6,3 M | Budget: R$ 12,5 M\n\n────────────────────────────────────────────────────────\nDETALHAMENTO DO CÁLCULO\n────────────────────────────────────────────────────────\nParâmetros\n  • % insucesso franquia: 30,00%\n  • Dias no mês: 30  |  hoje: dia 11  |  dias restantes: 19\n  • Base ativa (mês): 100.814\n\nChurn Executado\n  • Executado real (até hoje): 238\n  • Agendas hoje→fim do mês (exclui 'Reagendar'): 825  →  × (1 − 30,00%) = 577,5\n  • Involuntários completando 90 dias no mês: 33\n  • Budget = 238 + 577,5 + 33 = 848\n\nChurn Criado\n  • Criado real (até hoje): 360\n  • Média/dia: 32,7  ×  19 dias restantes = 621,8\n  • Budget = 360 + 621,8 = 982\n\nBacklog Geral\n  • Backlog hoje: 2.330\n  • (−) Involuntários 90 dias: 33\n  • (−) Agendas a baixar (× sucesso): 577,5\n  • (+) Criação projetada: 621,8\n  • Budget = 2.330 − 33 − 577,5 + 621,8 = 2.341\n\nReceita\n  • TKM (ticket médio executado): R$ 109,78\n  • Receita real (até hoje): R$ 26,1 K\n  • Receita Budget = TKM × Budget executado (848) = R$ 93,2 K\n  • Receita Junho Anual = Budget × 7 = R$ 652,1 K\n  • Receita YTD real (acúmulo da coluna 'Receita Ano') = R$ 6,3 M\n  • Receita YTD Budget (média do 'Receita Ano' × 12) = R$ 12,5 M\n\nReceita por mês (2026)\n  Mês           Receita Mês         TKM  Receita Ano\n  --------------------------------------------------\n  Janeiro        R$ 120,6 K   R$ 113,05     R$ 1,4 M\n  Fevereiro      R$ 100,5 K   R$ 114,55     R$ 1,1 M\n  Março          R$ 113,6 K   R$ 111,91     R$ 1,1 M\n  Abril          R$ 110,4 K   R$ 114,05   R$ 993,6 K\n  Maio           R$ 116,4 K   R$ 115,03   R$ 931,3 K\n  Junho *         R$ 93,2 K   R$ 109,78   R$ 652,1 K\n  (* mês atual = projeção / Budget)\n"
+  "texto": "Projeção de Fechamento — Junho/2026\ngerado em 12/06/2026 08:41\n\nChurn Executado: 266 (0,26%) | Budget: 862 (0,86%)\nChurn Criado: 516 (0,51%) | Budget: 1.290 (1,28%)\nBacklog Geral: 2.404 | Budget: 2.582\n\nReceita Churn: R$ 29,2 K | Budget: R$ 94,6 K\nReceita Churn Junho Anual: R$ 662,4 K\nReceita Churn YTD: R$ 6,3 M | Budget: R$ 12,6 M\n\n────────────────────────────────────────────────────────\nDETALHAMENTO DO CÁLCULO\n────────────────────────────────────────────────────────\nParâmetros\n  • % insucesso franquia: 30,00%\n  • Dias no mês: 30  |  hoje: dia 12  |  dias restantes: 18\n  • Base ativa (mês): 100.814\n\nChurn Executado\n  • Executado real (até hoje): 266\n  • Agendas hoje→fim do mês (exclui 'Reagendar'): 805  →  × (1 − 30,00%) = 563,5\n  • Involuntários completando 90 dias no mês: 33\n  • Budget = 266 + 563,5 + 33 = 862\n\nChurn Criado\n  • Criado real (até hoje): 516\n  • Média/dia: 43,0  ×  18 dias restantes = 774,0\n  • Budget = 516 + 774,0 = 1.290\n\nBacklog Geral\n  • Backlog hoje: 2.404\n  • (−) Involuntários 90 dias: 33\n  • (−) Agendas a baixar (× sucesso): 563,5\n  • (+) Criação projetada: 774,0\n  • Budget = 2.404 − 33 − 563,5 + 774,0 = 2.582\n\nReceita\n  • TKM (ticket médio executado): R$ 109,72\n  • Receita real (até hoje): R$ 29,2 K\n  • Receita Budget = TKM × Budget executado (862) = R$ 94,6 K\n  • Receita Junho Anual = Budget × 7 = R$ 662,4 K\n  • Receita YTD real (acúmulo da coluna 'Receita Ano') = R$ 6,3 M\n  • Receita YTD Budget (média do 'Receita Ano' × 12) = R$ 12,6 M\n\nReceita por mês (2026)\n  Mês           Receita Mês         TKM  Receita Ano\n  --------------------------------------------------\n  Janeiro        R$ 120,6 K   R$ 113,05     R$ 1,4 M\n  Fevereiro      R$ 100,5 K   R$ 114,55     R$ 1,1 M\n  Março          R$ 113,6 K   R$ 111,91     R$ 1,1 M\n  Abril          R$ 110,4 K   R$ 114,05   R$ 993,6 K\n  Maio           R$ 116,4 K   R$ 115,03   R$ 931,3 K\n  Junho *         R$ 94,6 K   R$ 109,72   R$ 662,4 K\n  (* mês atual = projeção / Budget)\n"
 }
