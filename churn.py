@@ -308,11 +308,11 @@ def load_created_churn_data(data_folder, file_prev, file_curr):
     return df_created
 
 def map_tipo_cliente(forma_juridica):
-    # 3 segmentos: House Hold (HH = Small Corporate; PF/individual tambem),
-    # Medium Corporate e Large Corporate. Desconhecido/vazio -> House Hold (sem 'Other').
+    # 2 segmentos: House Hold (HH = Small Corporate; PF/individual tambem) e
+    # CDW (unificacao de Medium Corporate + Large Corporate).
+    # Desconhecido/vazio -> House Hold (sem 'Other').
     u = '' if pd.isna(forma_juridica) else str(forma_juridica).strip().upper()
-    if u in ['MEDIUM CORPORATE', 'PME', 'P1', 'SME']: return 'Medium Corporate'
-    if u in ['LARGE CORPORATE', 'C1', 'CORPORATIVO', 'CORPORATE']: return 'Large Corporate'
+    if u in ['MEDIUM CORPORATE', 'PME', 'P1', 'SME', 'LARGE CORPORATE', 'C1', 'CORPORATIVO', 'CORPORATE']: return 'CDW'
     return 'House Hold'
 
 _CHURN_TYPE_NORM = {
@@ -950,7 +950,7 @@ def main():
 
     with tabs[3]:
         st.header(f"Distribution by Client Type")
-        pie_color_map = {'Large Corporate': '#0A2A66', 'Medium Corporate': '#1E5FCC', 'House Hold': '#60A5FA', 'Other': '#A9C2EB'}
+        pie_color_map = {'CDW': '#0A2A66', 'House Hold': '#60A5FA', 'Other': '#A9C2EB'}
         df_churn_prev = df_filtered[df_filtered['Ano Churn'] == 2025]
         df_churn_curr = df_filtered[df_filtered['Ano Churn'] == 2026]
         df_plot_client_type_prev = df_churn_prev.groupby('Tipo de Cliente').agg(Volume_Churn=('Volume', 'sum')).reset_index()
@@ -1007,7 +1007,7 @@ def main():
             df_total_merged = df_total_merged[['Mes Churn', 'Nome Mes Churn', 'Categoria', 'Volume_Churn', 'Churn_Rate']].dropna(subset=['Churn_Rate'])
             
             if not df_segmento_merged.empty:
-                line_color_map = {'House Hold': '#60A5FA', 'Medium Corporate': '#1E5FCC', 'Large Corporate': '#0A2A66', 'Other': '#A9C2EB'}
+                line_color_map = {'House Hold': '#60A5FA', 'CDW': '#0A2A66', 'Other': '#A9C2EB'}
                 
                 # --- CORREÇÃO DO DICIONÁRIO DE LABELS PARA EVITAR DUPLICIDADE EM BRANCO NO PLOTLY ---
                 fig_line_rate = px.line(
@@ -1041,7 +1041,7 @@ def main():
                 df_pivot = df_table_data.pivot_table(index='Categoria', columns='Nome Mes Churn', values='Churn_Rate')
                 ordered_months_in_data = [m for m in month_order_num_pt if m in df_pivot.columns]
                 df_pivot = df_pivot[ordered_months_in_data]
-                order_index = ['EXECUTED CHURN', 'Individual', 'SME', 'Corporate']
+                order_index = ['EXECUTED CHURN', 'House Hold', 'CDW']
                 valid_order_index = [idx for idx in order_index if idx in df_pivot.index]
                 df_pivot = df_pivot.reindex(valid_order_index)
                 
