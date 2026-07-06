@@ -1,0 +1,56 @@
+Projeção de Fechamento — Julho/2026
+gerado em 06/07/2026 09:03
+
+Churn Executado: 118 (0,12%) | Budget: 1.038 (1,03%)
+Churn Criado: 138 (0,14%) | Budget: 713 (0,71%)
+Backlog Geral: 2.536 | Budget: 2.191
+
+Receita Churn: R$ 12,6 K | Budget: R$ 111,0 K
+Receita Churn Julho Anual: R$ 665,7 K
+Receita Churn YTD: R$ 6,9 M | Budget: R$ 11,8 M
+
+────────────────────────────────────────────────────────
+DETALHAMENTO DO CÁLCULO
+────────────────────────────────────────────────────────
+Parâmetros
+  • % insucesso franquia: 40,00%
+  • Dias no mês: 31  |  hoje: dia 6  |  dias restantes: 25
+  • Base ativa (mês): 100.814
+
+Churn Executado
+  • Executado real (até hoje): 118
+  • Agendas hoje→fim do mês (exclui 'Reagendar'): 1.215  →  × (1 − 40,00%) = 729,0
+  • Involuntários completando 90 dias no mês: 191
+  • Budget = 118 + 729,0 + 191 = 1.038
+
+Churn Criado
+  • Criado real (até hoje): 138
+  • Média/dia: 23,0  ×  25 dias restantes = 575,0
+  • Budget = 138 + 575,0 = 713
+
+Backlog Geral
+  • Backlog hoje: 2.536
+  • (−) Involuntários 90 dias: 191
+  • (−) Agendas a baixar (× sucesso): 729,0
+  • (+) Criação projetada: 575,0
+  • Budget = 2.536 − 191 − 729,0 + 575,0 = 2.191
+
+Receita
+  • TKM (ticket médio executado): R$ 106,90
+  • Receita real (até hoje): R$ 12,6 K
+  • Receita Budget = TKM × Budget executado (1.038) = R$ 111,0 K
+  • Receita Julho Anual = Budget × 6 = R$ 665,7 K
+  • Receita YTD real (acúmulo da coluna 'Receita Ano') = R$ 6,9 M
+  • Receita YTD Budget (média do 'Receita Ano' × 12) = R$ 11,8 M
+
+Receita por mês (2026)
+  Mês           Receita Mês         TKM  Receita Ano
+  --------------------------------------------------
+  Janeiro        R$ 120,6 K   R$ 113,05     R$ 1,4 M
+  Fevereiro      R$ 100,5 K   R$ 114,55     R$ 1,1 M
+  Março          R$ 113,6 K   R$ 111,91     R$ 1,1 M
+  Abril          R$ 110,4 K   R$ 114,07   R$ 993,7 K
+  Maio           R$ 116,4 K   R$ 115,03   R$ 931,3 K
+  Junho           R$ 84,1 K   R$ 111,25   R$ 588,7 K
+  Julho *        R$ 111,0 K   R$ 106,90   R$ 665,7 K
+  (* mês atual = projeção / Budget)
