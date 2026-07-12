@@ -1,0 +1,8 @@
+# Tema do app — alinha os componentes nativos do Streamlit (radios, chips,
+# focos, abas) à paleta azul corporativa, em vez do vermelho padrão.
+[theme]
+base = "light"
+primaryColor = "#1E5FCC"
+backgroundColor = "#F4F7FD"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#16233F"
