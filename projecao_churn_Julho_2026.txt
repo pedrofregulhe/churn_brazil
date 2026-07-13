@@ -1,46 +1,46 @@
 Projeção de Fechamento — Julho/2026
-gerado em 10/07/2026 08:58
+gerado em 13/07/2026 08:52
 
-Churn Executado: 233 (0,23%) | Budget: 997 (0,99%)
-Churn Criado: 363 (0,36%) | Budget: 1.125 (1,12%)
-Backlog Geral: 2.446 | Budget: 2.444
+Churn Executado: 266 (0,26%) | Budget: 974 (0,97%)
+Churn Criado: 421 (0,42%) | Budget: 1.004 (1,00%)
+Backlog Geral: 2.443 | Budget: 2.318
 
-Receita Churn: R$ 25,3 K | Budget: R$ 108,0 K
-Receita Churn Julho Anual: R$ 648,3 K
-Receita Churn YTD: R$ 6,9 M | Budget: R$ 11,7 M
+Receita Churn: R$ 28,9 K | Budget: R$ 105,8 K
+Receita Churn Julho Anual: R$ 634,7 K
+Receita Churn YTD: R$ 6,8 M | Budget: R$ 11,7 M
 
 ────────────────────────────────────────────────────────
 DETALHAMENTO DO CÁLCULO
 ────────────────────────────────────────────────────────
 Parâmetros
   • % insucesso franquia: 40,00%
-  • Dias no mês: 31  |  hoje: dia 10  |  dias restantes: 21
+  • Dias no mês: 31  |  hoje: dia 13  |  dias restantes: 18
   • Base ativa (mês): 100.814
 
 Churn Executado
-  • Executado real (até hoje): 233
-  • Agendas hoje→fim do mês (exclui 'Reagendar'): 980  →  × (1 − 40,00%) = 588,0
+  • Executado real (até hoje): 266
+  • Agendas hoje→fim do mês (exclui 'Reagendar'): 886  →  × (1 − 40,00%) = 531,6
   • Involuntários completando 90 dias no mês: 176
-  • Budget = 233 + 588,0 + 176 = 997
+  • Budget = 266 + 531,6 + 176 = 974
 
 Churn Criado
-  • Criado real (até hoje): 363
-  • Média/dia: 36,3  ×  21 dias restantes = 762,3
-  • Budget = 363 + 762,3 = 1.125
+  • Criado real (até hoje): 421
+  • Média/dia: 32,4  ×  18 dias restantes = 582,9
+  • Budget = 421 + 582,9 = 1.004
 
 Backlog Geral
-  • Backlog hoje: 2.446
+  • Backlog hoje: 2.443
   • (−) Involuntários 90 dias: 176
-  • (−) Agendas a baixar (× sucesso): 588,0
-  • (+) Criação projetada: 762,3
-  • Budget = 2.446 − 176 − 588,0 + 762,3 = 2.444
+  • (−) Agendas a baixar (× sucesso): 531,6
+  • (+) Criação projetada: 582,9
+  • Budget = 2.443 − 176 − 531,6 + 582,9 = 2.318
 
 Receita
-  • TKM (ticket médio executado): R$ 108,37
-  • Receita real (até hoje): R$ 25,3 K
-  • Receita Budget = TKM × Budget executado (997) = R$ 108,0 K
-  • Receita Julho Anual = Budget × 6 = R$ 648,3 K
-  • Receita YTD real (acúmulo da coluna 'Receita Ano') = R$ 6,9 M
+  • TKM (ticket médio executado): R$ 108,65
+  • Receita real (até hoje): R$ 28,9 K
+  • Receita Budget = TKM × Budget executado (974) = R$ 105,8 K
+  • Receita Julho Anual = Budget × 6 = R$ 634,7 K
+  • Receita YTD real (acúmulo da coluna 'Receita Ano') = R$ 6,8 M
   • Receita YTD Budget (média do 'Receita Ano' × 12) = R$ 11,7 M
 
 Receita por mês (2026)
@@ -52,5 +52,5 @@ Receita por mês (2026)
   Abril          R$ 110,4 K   R$ 114,07   R$ 993,7 K
   Maio           R$ 116,4 K   R$ 115,03   R$ 931,3 K
   Junho           R$ 84,1 K   R$ 111,25   R$ 588,7 K
-  Julho *        R$ 108,0 K   R$ 108,37   R$ 648,3 K
+  Julho *        R$ 105,8 K   R$ 108,65   R$ 634,7 K
   (* mês atual = projeção / Budget)
