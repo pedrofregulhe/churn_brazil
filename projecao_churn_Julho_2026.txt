@@ -26,7 +26,7 @@ Churn Executado
 Churn Criado
   • Criado real (até hoje): 1.122
   • Média/dia: 70,1  ×  15 dias restantes = 1.051,9
-  • Budget = 1.122 + 1.051,9 = 2.174
+  • Budget = 1.122 + 1.051,9 = 1.572
 
 Backlog Geral
   • Backlog hoje: 2.918
