@@ -1,0 +1,37 @@
+# ============================================================
+# METAS (TARGET) DE CHURN — arquivo editavel a mao
+# ============================================================
+# Uma secao por mes, no formato [AAAA-MM].
+# Uma linha por indicador: chave = valor
+# Deixe em branco (ou remova a linha) se nao houver meta para o indicador.
+#
+# Indicadores aceitos:
+#   executed        -> Churn Executado (volume, numero inteiro)
+#   created         -> Churn Criado    (volume, numero inteiro)
+#   backlog         -> Backlog Geral   (volume, numero inteiro)
+#   revenue         -> Receita Churn do mes            (R$, ex.: 90000)
+#   annual_revenue  -> Receita Churn Anual (projecao)  (R$, ex.: 700000)
+#   ytd_revenue     -> Receita Churn YTD               (R$, ex.: 6500000)
+#
+# Observacoes:
+#   - O painel usa a secao do MES da projecao (definido em projecao_churn.json).
+#   - O Churn Operacional NAO tem meta (nao ha indicador para ele aqui).
+#   - Valores em pt-BR sao aceitos: pontos de milhar sao ignorados (1.006 = 1006).
+# ============================================================
+
+[2026-07]
+executed = 1100
+created = 1600
+backlog = 2500
+revenue = 90000
+annual_revenue = 90000
+ytd_revenue = 12300000
+
+# Exemplo de proximo mes (edite/descomente conforme necessario):
+# [2026-08]
+# executed =
+# created =
+# backlog =
+# revenue =
+# annual_revenue =
+# ytd_revenue =

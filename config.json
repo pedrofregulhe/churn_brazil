@@ -1,0 +1,60 @@
+{
+    "usuarios_oficiais": [
+	"ALVESM30",
+        "MARTIE90",
+        "SILVAJ49",
+        "AFONSS1",
+	"DOSSAM4",
+        "MIRANF11",
+	"DEJESF5",
+        "DASILG17"
+    ],
+    "usuarios_backup": [
+        "HENRIM12",
+        "VITORJ11",
+	"BARBOC20",
+	"CARDOK4",
+	"DEOLIT8",
+	"Taynara Damasceno Fernandes",
+	"Adrenalina Kaiana Brabosa",
+	"MADEIF"
+    ],
+    "usuarios_staff": [
+        "OLIVEA34",
+        "HELENL4",
+        "SSILVA"
+    ],
+    "usuarios_raf": [
+        "DOSSAM4"
+    ],
+    "usuarios_corporativo": [
+	"GISELE MARA DE SOUSA MOREIRA"
+],
+    "retention_bands": [
+        [
+            0.0,
+            0.55,
+            27.59
+        ],
+        [
+            0.5501,
+            0.59,
+            31.58
+        ],
+        [
+            0.5901,
+            0.65,
+            36.12
+        ],
+        [
+            0.6501,
+            1.0,
+            41.57
+        ]
+    ],
+    "motivos_a_desconsiderar": [
+        "FALECIMENTO DO TITULAR",
+        "AQUISI\u00c7\u00c3O DE BBLEND",
+        "MUDANÇA PARA CIDADE NÃO ATENDIDA"
+    ]
+}

@@ -40,6 +40,12 @@ otl_projections_file = 'otl_churn.xlsx'
 projecao_file = os.path.join(data_dir, 'projecao_churn.json')
 update_date_file = 'data_atualizacao.txt'
 update_date_path = os.path.join(data_dir, update_date_file)
+metas_file = os.path.join(data_dir, 'metas_churn.txt')            # Targets (Meta) mensais
+config_file = os.path.join(data_dir, 'config.json')              # grupos de usuarios (retencao)
+backlog_detalhado_file = 'backlog_detalhado_churn.xlsx'          # base detalhada p/ aba Uninstall Backlog
+# Google Sheet de Retencao (mesma base do retencao_app.py)
+URL_RETENCAO = "https://docs.google.com/spreadsheets/d/1KkmfNPSFcZhYHj_zRSfb72wuPffh7Go8lMPNLM1m1uE/edit?gid=0#gid=0"
+WORKSHEET_RETENCAO = "base_oficial_retencao"
 
 # --- FUNÇÃO DE ESTILO PARA GRÁFICOS ---
 def aplicar_tema_moderno(fig, cores_azuis=None):
@@ -153,24 +159,190 @@ def _mes_en(nome):
     return _MES_EN.get(nome, nome)
 
 
-def _proj_card_dual(title, d, pct=False):
-    """Card branco: Realizado + Budget (Budget em destaque)."""
+def _proj_target_row(target):
+    """Linha 'Target' opcional (aparece só quando há meta para o mês)."""
+    if target in (None, "", "-"):
+        return ""
+    return (f"<div class='proj-row target'><span class='lbl'>Target</span>"
+            f"<span class='val'>{target}</span></div>")
+
+
+def _proj_card_dual(title, d, pct=False, target=None):
+    """Card branco: Actual + OTL (OTL em destaque) + Target (opcional)."""
     real = d.get("real", "-"); budg = d.get("budget", "-")
     rp = f" <span class='proj-pct'>({d['real_pct']})</span>" if pct and d.get("real_pct") else ""
     bp = f" <span class='proj-pct budget'>({d['budget_pct']})</span>" if pct and d.get("budget_pct") else ""
     return (f"<div class='proj-card'><div class='proj-title'>{title}</div>"
             f"<div class='proj-row'><span class='lbl'>Actual</span>"
             f"<span class='val'>{real}{rp}</span></div>"
-            f"<div class='proj-row budget'><span class='lbl'>Budget</span>"
-            f"<span class='val'>{budg}{bp}</span></div></div>")
+            f"<div class='proj-row budget'><span class='lbl'>OTL</span>"
+            f"<span class='val'>{budg}{bp}</span></div>"
+            f"{_proj_target_row(target)}</div>")
 
 
-def _proj_card_single(title, value):
-    """Card branco com um único número em destaque."""
+def _proj_card_single(title, value, target=None):
+    """Card branco com um único número em destaque (+ Target opcional)."""
     return (f"<div class='proj-card'><div class='proj-title'>{title}</div>"
-            f"<div class='proj-row' style='visibility:hidden;'><span class='lbl'>-</span><span class='val'>-</span></div>"
-            f"<div class='proj-row budget' style='justify-content:center;border-top:1px dashed transparent;'>"
-            f"<span class='val' style='font-size:1.25rem;'>{value}</span></div></div>")
+            f"<div class='proj-row' style='justify-content:center;'>"
+            f"<span class='val' style='font-size:1.25rem;'>{value}</span></div>"
+            f"{_proj_target_row(target)}</div>")
+
+
+def _proj_card_operational(title, real, real_pct, otl, otl_pct):
+    """Card do Churn Operacional: Actual e OTL com absoluto + %, sem Target."""
+    rp = f" <span class='proj-pct'>({real_pct})</span>" if real_pct else ""
+    op = f" <span class='proj-pct budget'>({otl_pct})</span>" if otl_pct else ""
+    return (f"<div class='proj-card'><div class='proj-title'>{title}</div>"
+            f"<div class='proj-row'><span class='lbl'>Actual</span>"
+            f"<span class='val'>{real}{rp}</span></div>"
+            f"<div class='proj-row budget'><span class='lbl'>OTL</span>"
+            f"<span class='val'>{otl}{op}</span></div></div>")
+
+
+def _parse_ptbr_num(s):
+    """Converte string pt-BR ('100.814', '1.006', '92,1') em float. None se falhar."""
+    if s is None:
+        return None
+    try:
+        return float(str(s).strip().replace(".", "").replace(",", "."))
+    except (ValueError, TypeError):
+        return None
+
+
+@st.cache_data
+def load_metas(filepath, ano, mes):
+    """Lê metas_churn.txt (seções [YYYY-MM]) e devolve o dict de metas do mês pedido.
+    Indicadores: executed, created, backlog, revenue, annual_revenue, ytd_revenue."""
+    metas = {}
+    if not os.path.exists(filepath):
+        return metas
+    alvo = f"{int(ano):04d}-{int(mes):02d}"
+    cur = None
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            for raw in f:
+                line = raw.strip()
+                if not line or line.startswith("#") or line.startswith(";"):
+                    continue
+                if line.startswith("[") and line.endswith("]"):
+                    cur = line[1:-1].strip()
+                    continue
+                if cur != alvo or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip().lower()
+                val = _parse_ptbr_num(v)
+                if val is not None:
+                    metas[k] = val
+    except Exception:
+        return {}
+    return metas
+
+
+@st.cache_data
+def _backlog_total_mes(filepath, ano, mes):
+    """Soma 'Backlog (Geral)' de backlog_churn.xlsx para (ano, mês). None se indisponível."""
+    if not os.path.exists(filepath):
+        return None
+    try:
+        df = pd.read_excel(filepath)
+        df.columns = [str(c).strip() for c in df.columns]
+        mname = {1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
+                 7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"}[int(mes)]
+        col_mes = 'Mês' if 'Mês' in df.columns else next((c for c in df.columns if c.strip().lower().startswith('m') and 's' in c.lower()), 'Mês')
+        sub = df[(pd.to_numeric(df.get('Ano'), errors='coerce') == int(ano)) & (df[col_mes].astype(str).str.strip() == mname)]
+        if sub.empty:
+            return None
+        return float(pd.to_numeric(sub['Backlog (Geral)'], errors='coerce').fillna(0).sum())
+    except Exception:
+        return None
+
+
+def _aging_bucket(d):
+    """Classifica o aging (dias desde a criação do caso) em faixas executivas."""
+    if pd.isna(d):
+        return "Unknown"
+    d = int(d)
+    if d <= 30: return "0-30 days"
+    if d <= 60: return "31-60 days"
+    if d <= 90: return "61-90 days"
+    return ">90 days"
+
+
+@st.cache_data
+def load_backlog_detalhado(filepath):
+    """Lê a base DETALHADA de backlog (backlog_detalhado_churn.xlsx) gerada pelo atualizar_churn.py.
+    Calcula o aging (dias) a partir de 'Case.CreatedDate'. df vazio se o arquivo não existir."""
+    if not os.path.exists(filepath):
+        return pd.DataFrame()
+    try:
+        df = pd.read_excel(filepath)
+    except Exception:
+        return pd.DataFrame()
+    if df is None or df.empty:
+        return pd.DataFrame()
+    df = df.copy()
+    df.columns = [str(c).strip() for c in df.columns]
+    if 'Case.CreatedDate' in df.columns:
+        df['Case.CreatedDate'] = pd.to_datetime(df['Case.CreatedDate'], errors='coerce')
+        hoje = pd.Timestamp(datetime.now().date())
+        df['Aging_Dias'] = (hoje - df['Case.CreatedDate']).dt.days
+    else:
+        df['Aging_Dias'] = pd.NA
+    df['Aging_Faixa'] = df['Aging_Dias'].map(_aging_bucket)
+    for c in ['Nome da Franquia', 'Status da OS', 'Tipo de Churn']:
+        if c not in df.columns:
+            df[c] = 'NÃO INFORMADO'
+        df[c] = df[c].astype(str).str.strip().replace({'': 'NÃO INFORMADO', 'nan': 'NÃO INFORMADO', 'None': 'NÃO INFORMADO'})
+    return df
+
+
+@st.cache_data
+def load_group_config(filepath):
+    """Lê os grupos de usuários do config.json (mesmo arquivo do retencao_app.py)."""
+    groups = {"oficiais": [], "backup": [], "staff": [], "corporativo": []}
+    if not os.path.exists(filepath):
+        return groups
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            cfg = json.load(f)
+        groups["oficiais"]    = [str(u).strip().upper() for u in cfg.get("usuarios_oficiais", [])]
+        groups["backup"]      = [str(u).strip().upper() for u in cfg.get("usuarios_backup", [])]
+        groups["staff"]       = [str(u).strip().upper() for u in cfg.get("usuarios_staff", [])]
+        groups["corporativo"] = [str(u).strip().upper() for u in cfg.get("usuarios_corporativo", [])]
+    except Exception:
+        pass
+    return groups
+
+
+@st.cache_data(ttl=600)
+def load_retention_data(url, worksheet, corporativo_logins):
+    """Lê a base de retenção do Google Sheet (mesma do retencao_app.py) e classifica os grupos.
+    Colunas da base: Login, Status ('Retido'/'Não Retido'), DataCriacao, Franquia, ...
+    Devolve df com Ano, Mes e Grupo ('Corporate' | 'Existing'). df vazio se indisponível."""
+    conn = _get_gsheets_conn()
+    try:
+        df = conn.read(spreadsheet=url, worksheet=worksheet)
+    except Exception:
+        return pd.DataFrame()
+    if df is None or df.empty:
+        return pd.DataFrame()
+    df = df.copy()
+    df.columns = [str(c).strip() for c in df.columns]
+    if "DataCriacao" not in df.columns:
+        return pd.DataFrame()
+    df["Login"] = df.get("Login", "").astype(str).str.strip().str.upper()
+    df["Status"] = df.get("Status", "").astype(str).str.strip()
+    df["Franquia"] = df.get("Franquia", "").astype(str).str.strip()
+    df["DataCriacao"] = pd.to_datetime(df["DataCriacao"], dayfirst=True, errors="coerce")
+    df = df.dropna(subset=["DataCriacao"])
+    if df.empty:
+        return pd.DataFrame()
+    df["Ano"] = df["DataCriacao"].dt.year.astype(int)
+    df["Mes"] = df["DataCriacao"].dt.month.astype(int)
+    corp = set(corporativo_logins or ())
+    df["Grupo"] = df["Login"].apply(lambda l: "Corporate" if l in corp else "Existing")
+    return df
 
 
 @st.cache_data
@@ -277,6 +449,9 @@ def load_created_churn_data(data_folder, file_prev, file_curr):
     except FileNotFoundError as e: st.error(f"ERROR: CREATED CHURN .xlsx file not found. Details: {e}"); return pd.DataFrame()
     except Exception as e: st.error(f"ERROR: Problem loading CREATED CHURN data: {e}"); return pd.DataFrame()
     df_created.rename(columns={'Datacriacaoos': 'Data de Referencia', 'Statusos': 'Status da OS', 'DATADESINSTALACAO': 'Data de Desinstalacao', 'Formajuridica': 'Forma Juridica Original', 'tipoChurn': 'Tipo de Churn', 'Filialos': 'Filial'}, inplace=True)
+    # Cancelled cases must NOT count as Created churn.
+    if 'Status da OS' in df_created.columns:
+        df_created = df_created[df_created['Status da OS'].astype(str).str.strip().str.lower() != 'cancelado'].copy()
     if 'Tipo de Churn' in df_created.columns: df_created = df_created[df_created['Tipo de Churn'].astype(str).str.strip().str.lower() != 'desconsiderar'].copy()
     # >>> Painel em ingles: tipo e motivo vem da TAXONOMIA GLOBAL (colunas ja existentes nos arquivos)
     if 'Tipo de Churn (Global Insight)' in df_created.columns:
@@ -597,6 +772,9 @@ def main():
         .proj-row .val{ font-weight:700; color:var(--ink); }
         .proj-row.budget{ border-top:1px dashed var(--line); margin-top:3px; padding-top:6px; }
         .proj-row.budget .val{ color:var(--navy); font-weight:800; font-size:1.12rem; }
+        .proj-row.target{ border-top:1px dashed var(--line); margin-top:2px; padding-top:5px; }
+        .proj-row.target .lbl{ color:#0E9F6E; }
+        .proj-row.target .val{ color:#0E9F6E; font-weight:800; }
         .proj-pct{ font-weight:700; color:var(--muted); font-size:.78rem; }
         .proj-pct.budget{ color:var(--blue); }
         .proj-table{ width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:10px; overflow:hidden; box-shadow:0 5px 14px rgba(16,40,90,.05); font-size:.84rem; margin-top:6px; }
@@ -610,10 +788,6 @@ def main():
         </style>
     """, unsafe_allow_html=True)
     
-    def reset_criado_message_state():
-        if 'criado_message_shown' in st.session_state:
-            del st.session_state.criado_message_shown
-
     with st.sidebar:
         _logo_path = os.path.join(data_dir, "logo.png")
         if os.path.exists(_logo_path):
@@ -636,7 +810,7 @@ def main():
         churn_view = st.radio(
             "Select Churn View",
             ('Executed', 'Created'),
-            on_change=reset_criado_message_state
+            index=1  # Default landing view is "Created" churn
         )
 
     # Carregar dados
@@ -648,17 +822,13 @@ def main():
         df_churn = df_churn_criado_kpi.copy()
         df_active_raw, df_backlog_raw = pd.DataFrame(), pd.DataFrame()
         
-    if churn_view == 'Created' and not st.session_state.get('criado_message_shown', False):
-        st.warning(
-            """
-            **Important note about the Created Churn view:**
-            After 90 days, RPI work orders are automatically cancelled and the contract goes through the sbaff process...
-            """, icon="ℹ️"
-        )
-        if st.button("Got it"):
-            st.session_state.criado_message_shown = True
-            st.rerun()
-        st.stop() 
+    if churn_view == 'Created':
+        # Non-blocking note (the dashboard still renders on the Created landing view).
+        with st.expander("ℹ️ Important note about the Created Churn view", expanded=False):
+            st.markdown(
+                "After 90 days, RPI work orders are automatically cancelled and the contract "
+                "goes through the sbaff process."
+            )
 
     otl_projections = load_otl_projections_from_excel(otl_projections_file)
     projecao = load_projecao(projecao_file)
@@ -827,7 +997,8 @@ def main():
     tabs = st.tabs([
         "Monthly Churn", "Projection", "Operational Churn", "By Segment",
         "By Type", "Churn Reasons", "By Franchise",
-        "By Product", "Revenue", "Analytics"
+        "By Product", "Revenue", "Analytics",
+        "Uninstall Backlog", "Cancellation Intentions"
     ])
     
     with tabs[0]:
@@ -861,28 +1032,55 @@ def main():
             st.header(f"Closing Projection — {_mes_en(pj.get('nome_mes',''))}/{pj.get('ano','')}")
             st.markdown(
                 "<p style='color:#647393;font-size:.85rem;margin-top:-.4rem;'>"
-                "Actual to date vs. <b>Budget</b> (projected close)"
+                "Actual to date vs. <b>OTL</b> (projected close) &nbsp;•&nbsp; <b>Target</b> = monthly goal (metas_churn.txt)"
                 f" &nbsp;•&nbsp; Generated on {pj.get('gerado_em','-')}"
                 f" &nbsp;•&nbsp; Active base: {pj.get('base_ativa','-')}"
                 f" &nbsp;•&nbsp; Scheduling failure rate: {pj.get('pct_insucesso','-')}</p>",
                 unsafe_allow_html=True)
 
+            # --- Targets (Meta) do mês da projeção, lidos de metas_churn.txt ---
+            _metas = load_metas(metas_file, pj.get("ano"), pj.get("mes"))
+            def _tgt_vol(key):
+                v = _metas.get(key)
+                return f"{int(round(v)):,.0f}".replace(",", ".") if v is not None else None
+            def _tgt_money(key):
+                v = _metas.get(key)
+                return format_BRL_abbreviated(v) if v is not None else None
+
             row1 = st.columns(3)
             with row1[0]:
-                st.markdown(_proj_card_dual("Executed Churn", cards.get("executado", {}), pct=True), unsafe_allow_html=True)
+                st.markdown(_proj_card_dual("Executed Churn", cards.get("executado", {}), pct=True, target=_tgt_vol("executed")), unsafe_allow_html=True)
             with row1[1]:
-                st.markdown(_proj_card_dual("Created Churn", cards.get("criado", {}), pct=True), unsafe_allow_html=True)
+                st.markdown(_proj_card_dual("Created Churn", cards.get("criado", {}), pct=True, target=_tgt_vol("created")), unsafe_allow_html=True)
             with row1[2]:
-                st.markdown(_proj_card_dual("Total Backlog", cards.get("backlog", {})), unsafe_allow_html=True)
+                st.markdown(_proj_card_dual("Total Backlog", cards.get("backlog", {}), target=_tgt_vol("backlog")), unsafe_allow_html=True)
 
             st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
             row2 = st.columns(3)
             with row2[0]:
-                st.markdown(_proj_card_dual("Churn Revenue", cards.get("receita", {})), unsafe_allow_html=True)
+                st.markdown(_proj_card_dual("Churn Revenue", cards.get("receita", {}), target=_tgt_money("revenue")), unsafe_allow_html=True)
             with row2[1]:
-                st.markdown(_proj_card_single(f"{_mes_en(pj.get('nome_mes',''))} Annual Revenue", cards.get("anual", "-")), unsafe_allow_html=True)
+                st.markdown(_proj_card_single(f"{_mes_en(pj.get('nome_mes',''))} Annual Revenue", cards.get("anual", "-"), target=_tgt_money("annual_revenue")), unsafe_allow_html=True)
             with row2[2]:
-                st.markdown(_proj_card_dual("YTD Churn Revenue", cards.get("ytd", {})), unsafe_allow_html=True)
+                st.markdown(_proj_card_dual("YTD Churn Revenue", cards.get("ytd", {}), target=_tgt_money("ytd_revenue")), unsafe_allow_html=True)
+
+            # --- Operational Churn (Real vs OTL, abs + %) — sem Target ---
+            st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+            _base_ativa = _parse_ptbr_num(pj.get("base_ativa"))
+            _exec_real = _parse_ptbr_num(cards.get("executado", {}).get("real"))
+            _bl_path = os.path.join(data_dir, file_backlog_churn)
+            _bl_cur = _backlog_total_mes(_bl_path, pj.get("ano"), pj.get("mes"))
+            _prev_a, _prev_m = (pj.get("ano") - 1, 12) if pj.get("mes") == 1 else (pj.get("ano"), pj.get("mes") - 1)
+            _bl_prev = _backlog_total_mes(_bl_path, _prev_a, _prev_m)
+            _real_op = (_exec_real + (_bl_cur - _bl_prev)) if (_exec_real is not None and _bl_cur is not None and _bl_prev is not None) else None
+            _otl_op = otl_projections.get("OTL Churn Operacional", 0) or None
+            def _fmt_abs(v): return f"{int(round(v)):,.0f}".replace(",", ".") if v is not None else "-"
+            def _fmt_pct(v): return (f"{v / _base_ativa * 100:.2f}%".replace(".", ",")) if (v is not None and _base_ativa) else ""
+            row3 = st.columns(3)
+            with row3[0]:
+                st.markdown(_proj_card_operational("Operational Churn",
+                            _fmt_abs(_real_op), _fmt_pct(_real_op),
+                            _fmt_abs(_otl_op), _fmt_pct(_otl_op)), unsafe_allow_html=True)
 
             st.markdown("<div style='height:18px;'></div>", unsafe_allow_html=True)
             st.markdown(f"##### Monthly Revenue ({pj.get('ano','')})")
@@ -1307,6 +1505,147 @@ def main():
                 else: st.info("No churn data for the current year with the selected filters. Cannot compute the projection for the simulation.")
             st.markdown("---")
             st.caption("Insight quality depends on the amount and quality of available data.")
+
+    # ============================ UNINSTALL BACKLOG ============================
+    with tabs[10]:
+        st.header("Uninstall Backlog — Executive View")
+        df_bl_det = load_backlog_detalhado(os.path.join(data_dir, backlog_detalhado_file))
+        if df_bl_det.empty:
+            st.info(
+                "No detailed uninstall-backlog data found. Run **atualizar_churn.py** with the "
+                "backlog step enabled to generate **backlog_detalhado_churn.xlsx** in this folder."
+            )
+        else:
+            total_cases = len(df_bl_det)
+            invol = int((df_bl_det['Tipo de Churn'].astype(str).str.upper().str.startswith('INVOL')).sum())
+            volun = total_cases - invol
+            over90 = int((pd.to_numeric(df_bl_det['Aging_Dias'], errors='coerce') > 90).sum())
+            k1, k2, k3, k4 = st.columns(4)
+            with k1: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Total Backlog Cases</div><div class="kpi-value">{total_cases:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
+            with k2: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Involuntary</div><div class="kpi-value">{invol:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
+            with k3: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Voluntary</div><div class="kpi-value">{volun:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
+            with k4: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Aging &gt; 90 days</div><div class="kpi-value negative">{over90:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            c_left, c_right = st.columns(2)
+            with c_left:
+                st.subheader("By Case Status")
+                df_status = df_bl_det.groupby('Status da OS').size().reset_index(name='Cases').sort_values('Cases', ascending=False)
+                fig_status = px.bar(df_status, x='Cases', y='Status da OS', orientation='h', text='Cases',
+                                    labels={'Status da OS': 'Case Status', 'Cases': 'Cases'})
+                fig_status.update_layout(yaxis={'categoryorder': 'total ascending'})
+                st.plotly_chart(aplicar_tema_moderno(fig_status), use_container_width=True)
+            with c_right:
+                st.subheader("By Churn Type")
+                df_type = df_bl_det.groupby('Tipo de Churn').size().reset_index(name='Cases')
+                fig_type = px.pie(df_type, values='Cases', names='Tipo de Churn', hole=0.5)
+                fig_type.update_traces(textinfo='percent+label', pull=[0.04] * len(df_type))
+                fig_type.update_layout(showlegend=False)
+                st.plotly_chart(aplicar_tema_moderno(fig_type), use_container_width=True)
+
+            c_left2, c_right2 = st.columns(2)
+            with c_left2:
+                st.subheader("Creation Aging")
+                aging_order = ["0-30 days", "31-60 days", "61-90 days", ">90 days", "Unknown"]
+                df_aging = df_bl_det.groupby('Aging_Faixa').size().reindex(aging_order).dropna().reset_index()
+                df_aging.columns = ['Aging', 'Cases']
+                df_aging['Cases'] = df_aging['Cases'].astype(int)
+                fig_aging = px.bar(df_aging, x='Aging', y='Cases', text='Cases',
+                                   category_orders={'Aging': aging_order}, labels={'Cases': 'Cases'})
+                fig_aging.update_traces(textposition='outside')
+                st.plotly_chart(aplicar_tema_moderno(fig_aging), use_container_width=True)
+            with c_right2:
+                st.subheader("Top Franchises")
+                df_fr = df_bl_det.groupby('Nome da Franquia').size().reset_index(name='Cases').sort_values('Cases', ascending=False).head(15)
+                fig_fr = px.bar(df_fr, x='Cases', y='Nome da Franquia', orientation='h', text='Cases',
+                                labels={'Nome da Franquia': 'Franchise', 'Cases': 'Cases'})
+                fig_fr.update_layout(yaxis={'categoryorder': 'total ascending'})
+                st.plotly_chart(aplicar_tema_moderno(fig_fr), use_container_width=True)
+
+            with st.expander("Franchise breakdown (table)"):
+                df_fr_full = df_bl_det.groupby('Nome da Franquia').size().reset_index(name='Cases').sort_values('Cases', ascending=False)
+                df_fr_full = df_fr_full.rename(columns={'Nome da Franquia': 'Franchise'})
+                st.dataframe(df_fr_full, use_container_width=True, hide_index=True)
+
+    # ========================= CANCELLATION INTENTIONS =========================
+    with tabs[11]:
+        st.header("Cancellation Intentions — Retention Funnel")
+        groups_cfg = load_group_config(config_file)
+        df_ret = load_retention_data(URL_RETENCAO, WORKSHEET_RETENCAO, tuple(groups_cfg.get("corporativo", [])))
+        if df_ret.empty:
+            st.warning(
+                "Retention data unavailable. This view reads the same Google Sheet as the retention app "
+                "(`base_oficial_retencao`) — it needs the gsheets connection configured on this deployment, "
+                "or there may be no retention records yet."
+            )
+        else:
+            scope = st.radio(
+                "Group filter",
+                ("All existing groups", "Corporate"),
+                horizontal=True,
+                help="'All existing groups' = the 4 original retention groups. 'Corporate' = the new group (usuarios_corporativo in config.json).",
+            )
+            grupo_key = "Corporate" if scope == "Corporate" else "Existing"
+            seg_cliente = "CDW" if scope == "Corporate" else "House Hold"
+
+            sel_month_nums = [month_order_num_pt.index(m) + 1 for m in selected_months if m in month_order_num_pt]
+            df_scope = df_ret[(df_ret["Grupo"] == grupo_key) & (df_ret["Ano"].isin(selected_years)) & (df_ret["Mes"].isin(sel_month_nums))]
+
+            retidos = int((df_scope["Status"] == "Retido").sum())
+            nao_retidos = int((df_scope["Status"] == "Não Retido").sum())
+            intencoes = retidos + nao_retidos
+            conversao = (retidos / intencoes * 100) if intencoes > 0 else 0.0
+
+            # Y = uninstall orders opened = Created churn of the month for the matching client segment.
+            df_cri_scope = df_churn_criado_kpi[
+                (df_churn_criado_kpi["Ano Churn"].isin(selected_years)) &
+                (df_churn_criado_kpi["Nome Mes Churn"].isin(selected_months)) &
+                (df_churn_criado_kpi["Tipo de Cliente"] == seg_cliente)
+            ]
+            ordens_retirada = int(df_cri_scope["Volume"].sum())
+
+            _periodo = f"{', '.join(selected_months)} {', '.join(map(str, selected_years))}"
+            st.caption(f"Scope: **{scope}** ({seg_cliente} segment for uninstall orders) — Period: {_periodo}")
+
+            m1, m2, m3, m4, m5 = st.columns(5)
+            with m1: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Cancellation Intentions</div><div class="kpi-value">{intencoes:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
+            with m2: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Retained</div><div class="kpi-value positive">{retidos:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
+            with m3: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Not Retained</div><div class="kpi-value negative">{nao_retidos:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
+            with m4: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Uninstall Orders Opened</div><div class="kpi-value">{ordens_retirada:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
+            with m5: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Conversion</div><div class="kpi-value-small">{conversao:.2f}%</div></div>""".replace(".", ","), unsafe_allow_html=True)
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            df_month = df_ret[(df_ret["Grupo"] == grupo_key) & (df_ret["Ano"].isin(selected_years))].copy()
+            if not df_month.empty:
+                st.subheader("Monthly Evolution")
+                month_names_map = {1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June", 7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"}
+                g = df_month.groupby("Mes").agg(
+                    Retained=("Status", lambda s: (s == "Retido").sum()),
+                    Not_Retained=("Status", lambda s: (s == "Não Retido").sum()),
+                ).reset_index()
+                g["Intentions"] = g["Retained"] + g["Not_Retained"]
+                g["Conversion"] = (g["Retained"] / g["Intentions"].replace(0, pd.NA) * 100).fillna(0)
+                g["Month"] = g["Mes"].map(month_names_map)
+                g = g.sort_values("Mes")
+                fig_ev = px.bar(g, x="Month", y=["Retained", "Not_Retained"], barmode="stack",
+                                category_orders={"Month": month_order_num_pt},
+                                labels={"value": "Cancellation Intentions", "variable": "Status", "Month": "Month"})
+                fig_ev.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
+                st.plotly_chart(aplicar_tema_moderno(fig_ev), use_container_width=True)
+                g_disp = g[["Month", "Intentions", "Retained", "Not_Retained", "Conversion"]].copy()
+                g_disp["Conversion"] = g_disp["Conversion"].map(lambda x: f"{x:.2f}%".replace(".", ","))
+                st.dataframe(g_disp, use_container_width=True, hide_index=True)
+
+            resumo_txt = (
+                f"Cancellation Intentions — {scope}\n"
+                f"Period: {_periodo}\n\n"
+                f"Cancellation Intentions: {intencoes}\n"
+                f"Retained: {retidos}\n"
+                f"Not Retained: {nao_retidos}\n"
+                f"Uninstall Orders Opened: {ordens_retirada}\n"
+                f"Conversion: {conversao:.2f}%"
+            ).replace(".", ",")
+            st.text_area("Copy the summary below:", value=resumo_txt, height=180)
 
 
 if __name__ == "__main__":
