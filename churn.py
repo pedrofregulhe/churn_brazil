@@ -314,6 +314,16 @@ def load_backlog_detalhado(filepath):
         if c not in df.columns:
             df[c] = 'NÃO INFORMADO'
         df[c] = df[c].astype(str).str.strip().replace({'': 'NÃO INFORMADO', 'nan': 'NÃO INFORMADO', 'None': 'NÃO INFORMADO'})
+    # Franchise: the work-order field ('Nome da Franquia') is only filled for rescheduled cases,
+    # so prefer the ASSET franchise (same source the main panel uses as 'Filialos'), which covers
+    # every case; fall back to the work-order name when the asset one is missing.
+    _asset_fr = 'Case.FOZ_Asset__r.FOZ_EndFranquiaForm__c'
+    if _asset_fr in df.columns:
+        af = df[_asset_fr].astype(str).str.strip()
+        df['Franquia'] = af.where(~af.str.lower().isin(['', 'nan', 'none']), df['Nome da Franquia'])
+    else:
+        df['Franquia'] = df['Nome da Franquia']
+    df['Franquia'] = df['Franquia'].astype(str).str.strip().replace({'': 'NÃO INFORMADO', 'nan': 'NÃO INFORMADO', 'None': 'NÃO INFORMADO'})
     # Case status: prefer the case-level status (richer variety) written by the extractor as
     # 'Status do Caso'; fall back to the OS line-item status when it's absent/blank.
     if 'Status do Caso' in df.columns:
@@ -814,11 +824,12 @@ def main():
         .proj-table tbody tr.atual{ background:var(--blue-soft); }
         .proj-table tbody tr.atual td{ font-weight:800; color:var(--navy); border-top:1px solid #C9DBF7; }
         /* Breakdown cards (Uninstall Backlog): same footprint as a KPI card */
-        .bd-card{ box-sizing:border-box; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:9px 12px; height:102px; overflow-y:auto; position:relative;
+        .bd-card{ box-sizing:border-box; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:11px 12px 9px; height:102px; overflow-y:auto; position:relative;
+            display:flex; flex-direction:column; justify-content:center;
             box-shadow:0 1px 2px rgba(16,40,90,.04), 0 8px 20px rgba(16,40,90,.05); }
         .bd-card::before{ content:""; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--navy),var(--blue2)); }
-        .bd-title{ font-size:.62rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.04em; margin-bottom:5px; }
-        .bd-item{ display:flex; justify-content:space-between; align-items:baseline; font-size:.72rem; color:var(--ink); padding:1px 0; }
+        .bd-title{ font-size:.62rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; text-align:center; }
+        .bd-item{ display:flex; justify-content:space-between; align-items:baseline; font-size:.68rem; color:var(--ink); padding:0 2px; line-height:1.35; }
         .bd-item .k{ color:var(--muted); }
         .bd-item .v{ font-weight:800; color:var(--navy); }
         </style>
@@ -1553,24 +1564,18 @@ def main():
             invol = int((df_bl_det['Tipo de Churn'].astype(str).str.upper().str.startswith('INVOL')).sum())
             volun = total_cases - invol
             over90 = int((pd.to_numeric(df_bl_det['Aging_Dias'], errors='coerce') > 90).sum())
-            k1, k2, k3, k4 = st.columns(4)
-            with k1: st.markdown(_kpi_box("Total Backlog Cases", f"{total_cases:,.0f}".replace(",", ".")), unsafe_allow_html=True)
-            with k2: st.markdown(_kpi_box("Involuntary", f"{invol:,.0f}".replace(",", ".")), unsafe_allow_html=True)
-            with k3: st.markdown(_kpi_box("Voluntary", f"{volun:,.0f}".replace(",", ".")), unsafe_allow_html=True)
-            with k4: st.markdown(_kpi_box("Aging > 90 days", f"{over90:,.0f}".replace(",", "."), extra="negative"), unsafe_allow_html=True)
-
-            # Two breakdown cards (Case Status / Churn Type), same footprint as the KPIs above and
-            # centered under them (placed in the middle two of a 4-column grid).
+            # Case Status sits alongside the KPIs, same height/width as the other cards.
             def _bd_card(title, series):
                 vc = series.value_counts()
                 rows = "".join(f"<div class='bd-item'><span class='k'>{str(k)}</span><span class='v'>{int(v)}</span></div>" for k, v in vc.items())
                 return f"<div class='bd-card'><div class='bd-title'>{title}</div>{rows}</div>"
-            st.markdown("<br>", unsafe_allow_html=True)
-            bc = st.columns(4)
-            with bc[1]:
-                st.markdown(_bd_card("Case Status", df_bl_det['Case Status']), unsafe_allow_html=True)
-            with bc[2]:
-                st.markdown(_bd_card("Churn Type", df_bl_det['Tipo de Churn']), unsafe_allow_html=True)
+
+            k1, k2, k3, k4, k5 = st.columns(5)
+            with k1: st.markdown(_kpi_box("Total Backlog Cases", f"{total_cases:,.0f}".replace(",", ".")), unsafe_allow_html=True)
+            with k2: st.markdown(_kpi_box("Involuntary", f"{invol:,.0f}".replace(",", ".")), unsafe_allow_html=True)
+            with k3: st.markdown(_kpi_box("Voluntary", f"{volun:,.0f}".replace(",", ".")), unsafe_allow_html=True)
+            with k4: st.markdown(_kpi_box("Aging > 90 days", f"{over90:,.0f}".replace(",", "."), extra="negative"), unsafe_allow_html=True)
+            with k5: st.markdown(_bd_card("Case Status", df_bl_det['Case Status']), unsafe_allow_html=True)
 
             # Creation Aging -> table
             st.markdown("<br>", unsafe_allow_html=True)
@@ -1585,17 +1590,17 @@ def main():
 
             # Franchise x Case Status (all franchises)
             st.subheader("By Franchise & Case Status")
-            piv = pd.crosstab(df_bl_det['Nome da Franquia'], df_bl_det['Case Status'])
+            piv = pd.crosstab(df_bl_det['Franquia'], df_bl_det['Case Status'])
             piv['Total'] = piv.sum(axis=1)
-            piv = piv.sort_values('Total', ascending=False).reset_index().rename(columns={'Nome da Franquia': 'Franchise'})
+            piv = piv.sort_values('Total', ascending=False).reset_index().rename(columns={'Franquia': 'Franchise'})
             st.dataframe(piv, use_container_width=True, hide_index=True)
 
             # Franchise-level extract
             st.subheader("Franchise Extract")
-            franquias_all = sorted([f for f in df_bl_det['Nome da Franquia'].dropna().unique()])
+            franquias_all = sorted([f for f in df_bl_det['Franquia'].dropna().unique()])
             sel_fr = st.multiselect("Select one or more franchises", franquias_all, key="bl_fr_sel")
             if sel_fr:
-                df_sel = df_bl_det[df_bl_det['Nome da Franquia'].isin(sel_fr)]
+                df_sel = df_bl_det[df_bl_det['Franquia'].isin(sel_fr)]
                 t = len(df_sel)
                 iv = int((df_sel['Tipo de Churn'].astype(str).str.upper().str.startswith('INVOL')).sum())
                 vv = t - iv
@@ -1605,8 +1610,8 @@ def main():
                 with f2: st.markdown(_kpi_box("Involuntary", f"{iv:,.0f}".replace(",", ".")), unsafe_allow_html=True)
                 with f3: st.markdown(_kpi_box("Voluntary", f"{vv:,.0f}".replace(",", ".")), unsafe_allow_html=True)
                 with f4: st.markdown(_kpi_box("Aging > 90 days", f"{o90:,.0f}".replace(",", "."), extra="negative"), unsafe_allow_html=True)
-                cols_extract = [c for c in ['Número do Caso', 'Case.Account.Name', 'Nome da Franquia', 'Case Status',
-                                            'Status da OS', 'Tipo de Churn', 'Case.CreatedDate', 'Aging_Dias', 'Aging_Faixa'] if c in df_sel.columns]
+                cols_extract = [c for c in ['Número do Caso', 'Case.Account.Name', 'Franquia', 'Case Status',
+                                            'Tipo de Churn', 'Case.CreatedDate', 'Aging_Dias', 'Aging_Faixa'] if c in df_sel.columns]
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.dataframe(df_sel[cols_extract], use_container_width=True, hide_index=True)
             else:
