@@ -189,14 +189,16 @@ def _proj_card_single(title, value, target=None):
 
 
 def _proj_card_operational(title, real, real_pct, otl, otl_pct):
-    """Card do Churn Operacional: Actual e OTL com absoluto + %, sem Target."""
+    """Card do Churn Operacional: Actual e OTL com absoluto + %, sem Target.
+    A 3a linha (invisivel) mantem a MESMA altura dos cards que tem Target."""
     rp = f" <span class='proj-pct'>({real_pct})</span>" if real_pct else ""
     op = f" <span class='proj-pct budget'>({otl_pct})</span>" if otl_pct else ""
     return (f"<div class='proj-card'><div class='proj-title'>{title}</div>"
             f"<div class='proj-row'><span class='lbl'>Actual</span>"
             f"<span class='val'>{real}{rp}</span></div>"
             f"<div class='proj-row budget'><span class='lbl'>OTL</span>"
-            f"<span class='val'>{otl}{op}</span></div></div>")
+            f"<span class='val'>{otl}{op}</span></div>"
+            f"<div class='proj-row target' style='visibility:hidden;'><span class='lbl'>-</span><span class='val'>-</span></div></div>")
 
 
 def _proj_card_annual_ytd(title, annual_val, ytd):
@@ -312,6 +314,14 @@ def load_backlog_detalhado(filepath):
         if c not in df.columns:
             df[c] = 'NÃO INFORMADO'
         df[c] = df[c].astype(str).str.strip().replace({'': 'NÃO INFORMADO', 'nan': 'NÃO INFORMADO', 'None': 'NÃO INFORMADO'})
+    # Case status: prefer the case-level status (richer variety) written by the extractor as
+    # 'Status do Caso'; fall back to the OS line-item status when it's absent/blank.
+    if 'Status do Caso' in df.columns:
+        cs = df['Status do Caso'].astype(str).str.strip()
+        df['Case Status'] = cs.where(~cs.str.lower().isin(['', 'nan', 'none', 'não informado']), df['Status da OS'])
+    else:
+        df['Case Status'] = df['Status da OS']
+    df['Case Status'] = df['Case Status'].astype(str).str.strip().replace({'': 'NÃO INFORMADO', 'nan': 'NÃO INFORMADO', 'None': 'NÃO INFORMADO'})
     return df
 
 
@@ -782,7 +792,7 @@ def main():
         .stButton>button:hover{ background:var(--blue); color:#fff; }
         hr{ border-color:var(--line); }
         /* Projection tab */
-        .proj-card{ box-sizing:border-box; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px 11px; box-shadow:0 1px 2px rgba(16,40,90,.04), 0 8px 20px rgba(16,40,90,.05); position:relative; overflow:hidden; min-height:96px; }
+        .proj-card{ box-sizing:border-box; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px 11px; box-shadow:0 1px 2px rgba(16,40,90,.04), 0 8px 20px rgba(16,40,90,.05); position:relative; overflow:hidden; min-height:120px; }
         .proj-card::before{ content:""; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--navy),var(--blue2)); }
         .proj-title{ font-size:.64rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px; }
         .proj-row{ display:flex; justify-content:space-between; align-items:baseline; padding:3px 0; font-size:.85rem; color:var(--ink); }
@@ -803,15 +813,14 @@ def main():
         .proj-table tbody tr:nth-child(even){ background:#FAFCFF; }
         .proj-table tbody tr.atual{ background:var(--blue-soft); }
         .proj-table tbody tr.atual td{ font-weight:800; color:var(--navy); border-top:1px solid #C9DBF7; }
-        /* Mini stat chips (Uninstall Backlog) */
-        .mini-wrap{ display:flex; flex-wrap:wrap; gap:22px; align-items:stretch; margin:2px 0 6px; }
-        .mini-group{ display:flex; flex-direction:column; gap:6px; }
-        .mini-group-title{ font-size:.62rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
-        .mini-row{ display:flex; flex-wrap:wrap; gap:8px; }
-        .mini-chip{ background:var(--card); border:1px solid var(--line); border-radius:9px; padding:7px 11px; min-width:78px; text-align:center; box-shadow:0 3px 8px rgba(16,40,90,.05); }
-        .mini-chip .n{ font-size:1.1rem; font-weight:800; color:var(--navy); line-height:1.05; }
-        .mini-chip .l{ font-size:.58rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.03em; margin-top:3px; }
-        .mini-sep{ width:1px; background:var(--line); align-self:stretch; }
+        /* Breakdown cards (Uninstall Backlog): same footprint as a KPI card */
+        .bd-card{ box-sizing:border-box; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:9px 12px; height:102px; overflow-y:auto; position:relative;
+            box-shadow:0 1px 2px rgba(16,40,90,.04), 0 8px 20px rgba(16,40,90,.05); }
+        .bd-card::before{ content:""; position:absolute; top:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--navy),var(--blue2)); }
+        .bd-title{ font-size:.62rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.04em; margin-bottom:5px; }
+        .bd-item{ display:flex; justify-content:space-between; align-items:baseline; font-size:.72rem; color:var(--ink); padding:1px 0; }
+        .bd-item .k{ color:var(--muted); }
+        .bd-item .v{ font-weight:800; color:var(--navy); }
         </style>
     """, unsafe_allow_html=True)
     
@@ -931,15 +940,21 @@ def main():
         avg_ticket_display = format_BRL(avg_ticket)
         st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Fin. Impact (Year)</div><div class="kpi-value-revenue" title="Total impact: {full_revenue_display}">{abbreviated_revenue_display}</div><div class="kpi-sub-value" style="margin-top: 5px;"><b>Avg. Ticket:</b> {avg_ticket_display}</div></div>""", unsafe_allow_html=True)
     with col2:
+        # In the Created view, col1 already shows Created churn for the selected year(s); to avoid
+        # duplicating the same number, this second card shows the PREVIOUS year (e.g., 2025).
+        if churn_view == 'Created':
+            criado_years = [max(selected_years) - 1] if selected_years else [2025]
+        else:
+            criado_years = selected_years
         df_kpi_criado_filtered = df_churn_criado_kpi[
-            (df_churn_criado_kpi['Ano Churn'].isin(selected_years)) &
+            (df_churn_criado_kpi['Ano Churn'].isin(criado_years)) &
             (df_churn_criado_kpi['Nome Mes Churn'].isin(selected_months)) &
             (df_churn_criado_kpi['Tipo de Cliente'].isin(selected_client_types))
         ]
         if selected_churn_types and 'Tipo de Churn' in df_kpi_criado_filtered.columns:
             df_kpi_criado_filtered = df_kpi_criado_filtered[df_kpi_criado_filtered['Tipo de Churn'].isin(selected_churn_types)]
         total_churn_criado_filtrado = df_kpi_criado_filtered['Volume'].sum()
-        years_str = ', '.join(map(str, selected_years)) if selected_years else "None"
+        years_str = ', '.join(map(str, criado_years)) if criado_years else "None"
         st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Total Created Churn ({years_str})</div><div class="kpi-value">{total_churn_criado_filtrado:,.0f}</div></div>""".replace(",","."), unsafe_allow_html=True)
     with col4:
         total_backlog_selected_months = 0
@@ -1544,21 +1559,18 @@ def main():
             with k3: st.markdown(_kpi_box("Voluntary", f"{volun:,.0f}".replace(",", ".")), unsafe_allow_html=True)
             with k4: st.markdown(_kpi_box("Aging > 90 days", f"{over90:,.0f}".replace(",", "."), extra="negative"), unsafe_allow_html=True)
 
-            # Compact chips: Case Status + Churn Type on the same line, grouped by subject
-            st.markdown("<br>", unsafe_allow_html=True)
-            def _chips(series):
+            # Two breakdown cards (Case Status / Churn Type), same footprint as the KPIs above and
+            # centered under them (placed in the middle two of a 4-column grid).
+            def _bd_card(title, series):
                 vc = series.value_counts()
-                return "".join(f"<div class='mini-chip'><div class='n'>{int(v)}</div><div class='l'>{str(k)}</div></div>" for k, v in vc.items())
-            chips_html = (
-                "<div class='mini-wrap'>"
-                "<div class='mini-group'><div class='mini-group-title'>Case Status</div>"
-                f"<div class='mini-row'>{_chips(df_bl_det['Status da OS'])}</div></div>"
-                "<div class='mini-sep'></div>"
-                "<div class='mini-group'><div class='mini-group-title'>Churn Type</div>"
-                f"<div class='mini-row'>{_chips(df_bl_det['Tipo de Churn'])}</div></div>"
-                "</div>"
-            )
-            st.markdown(chips_html, unsafe_allow_html=True)
+                rows = "".join(f"<div class='bd-item'><span class='k'>{str(k)}</span><span class='v'>{int(v)}</span></div>" for k, v in vc.items())
+                return f"<div class='bd-card'><div class='bd-title'>{title}</div>{rows}</div>"
+            st.markdown("<br>", unsafe_allow_html=True)
+            bc = st.columns(4)
+            with bc[1]:
+                st.markdown(_bd_card("Case Status", df_bl_det['Case Status']), unsafe_allow_html=True)
+            with bc[2]:
+                st.markdown(_bd_card("Churn Type", df_bl_det['Tipo de Churn']), unsafe_allow_html=True)
 
             # Creation Aging -> table
             st.markdown("<br>", unsafe_allow_html=True)
@@ -1573,7 +1585,7 @@ def main():
 
             # Franchise x Case Status (all franchises)
             st.subheader("By Franchise & Case Status")
-            piv = pd.crosstab(df_bl_det['Nome da Franquia'], df_bl_det['Status da OS'])
+            piv = pd.crosstab(df_bl_det['Nome da Franquia'], df_bl_det['Case Status'])
             piv['Total'] = piv.sum(axis=1)
             piv = piv.sort_values('Total', ascending=False).reset_index().rename(columns={'Nome da Franquia': 'Franchise'})
             st.dataframe(piv, use_container_width=True, hide_index=True)
@@ -1593,8 +1605,8 @@ def main():
                 with f2: st.markdown(_kpi_box("Involuntary", f"{iv:,.0f}".replace(",", ".")), unsafe_allow_html=True)
                 with f3: st.markdown(_kpi_box("Voluntary", f"{vv:,.0f}".replace(",", ".")), unsafe_allow_html=True)
                 with f4: st.markdown(_kpi_box("Aging > 90 days", f"{o90:,.0f}".replace(",", "."), extra="negative"), unsafe_allow_html=True)
-                cols_extract = [c for c in ['Número do Caso', 'Case.Account.Name', 'Nome da Franquia', 'Status da OS',
-                                            'Tipo de Churn', 'Case.CreatedDate', 'Aging_Dias', 'Aging_Faixa'] if c in df_sel.columns]
+                cols_extract = [c for c in ['Número do Caso', 'Case.Account.Name', 'Nome da Franquia', 'Case Status',
+                                            'Status da OS', 'Tipo de Churn', 'Case.CreatedDate', 'Aging_Dias', 'Aging_Faixa'] if c in df_sel.columns]
                 st.markdown("<br>", unsafe_allow_html=True)
                 st.dataframe(df_sel[cols_extract], use_container_width=True, hide_index=True)
             else:
@@ -1651,11 +1663,11 @@ def main():
             with m4: st.markdown(_kpi_box("Uninstall Orders Opened", f"{ordens_retirada:,.0f}".replace(",", ".")), unsafe_allow_html=True)
             with m5: st.markdown(_kpi_box("Conversion", f"{conversao:.2f}%".replace(".", ","), value_class="kpi-value-small"), unsafe_allow_html=True)
 
-            # Extract: Top 10 cancellation reasons + Top 10 by client (from Not Retained)
+            # Extract (from Not Retained): Top 10 reasons always; Top 10 by client only for CDW.
             st.markdown("<br>", unsafe_allow_html=True)
             df_nr = df_scope[df_scope["Status"] == "Não Retido"]
-            ex1, ex2 = st.columns(2)
-            with ex1:
+
+            def _render_top_reasons():
                 st.subheader("Top 10 Cancellation Reasons")
                 if "Categoria2Motivo" in df_nr.columns and not df_nr.empty:
                     tr = df_nr["Categoria2Motivo"].astype(str).str.strip()
@@ -1664,20 +1676,30 @@ def main():
                         top_r = tr.value_counts().head(10).reset_index()
                         top_r.columns = ["Cancellation Reason", "Cases"]
                         st.dataframe(top_r, use_container_width=True, hide_index=True)
-                    else: st.caption("No cancellation reasons for this scope/period.")
-                else: st.caption("No cancellation reasons for this scope/period.")
-            with ex2:
+                        return
+                st.caption("No cancellation reasons for this scope/period.")
+
+            def _render_top_clients():
                 st.subheader("Top 10 Cancellations by Client")
-                client_col = next((c for c in ["Cliente", "Account.Name", "Conta", "Nome Cliente", "ID_Contrato"] if c in df_nr.columns), None)
-                if client_col and not df_nr.empty:
-                    tc = df_nr[client_col].astype(str).str.strip()
+                # Client name column (populated by the retention sync as 'Cliente'/'Account.Name').
+                name_col = next((c for c in ["Cliente", "Account.Name", "Nome Cliente", "Nome_Cliente", "NomeCliente", "Conta"] if c in df_nr.columns), None)
+                if name_col and not df_nr.empty:
+                    tc = df_nr[name_col].astype(str).str.strip()
                     tc = tc[~tc.str.lower().isin(['', 'nan', 'none'])]
                     if not tc.empty:
                         top_c = tc.value_counts().head(10).reset_index()
-                        top_c.columns = ["Client" if client_col != "ID_Contrato" else "Contract (ID)", "Cases"]
+                        top_c.columns = ["Client", "Cases"]
                         st.dataframe(top_c, use_container_width=True, hide_index=True)
-                    else: st.caption("No client data for this scope/period.")
-                else: st.caption("No client data for this scope/period.")
+                        return
+                st.caption("Client names are not available in the retention base yet. Re-run the retention "
+                           "sync (which now writes the `Cliente`/Account.Name column) to populate this table.")
+
+            if scope == "CDW":
+                ex1, ex2 = st.columns(2)
+                with ex1: _render_top_reasons()
+                with ex2: _render_top_clients()
+            else:
+                _render_top_reasons()
 
             resumo_txt = (
                 f"Cancellation Intentions — {scope}\n"
