@@ -199,6 +199,24 @@ def _proj_card_operational(title, real, real_pct, otl, otl_pct):
             f"<span class='val'>{otl}{op}</span></div></div>")
 
 
+def _proj_card_annual_ytd(title, annual_val, ytd):
+    """Card combinando Annual Revenue + YTD (Actual/OTL), na mesma altura dos demais."""
+    yreal = ytd.get("real", "-"); yotl = ytd.get("budget", "-")
+    return (f"<div class='proj-card'><div class='proj-title'>{title}</div>"
+            f"<div class='proj-row'><span class='lbl'>Annual</span>"
+            f"<span class='val'>{annual_val}</span></div>"
+            f"<div class='proj-row'><span class='lbl'>YTD Actual</span>"
+            f"<span class='val'>{yreal}</span></div>"
+            f"<div class='proj-row budget'><span class='lbl'>YTD OTL</span>"
+            f"<span class='val'>{yotl}</span></div></div>")
+
+
+def _kpi_box(title, value, extra="", value_class="kpi-value"):
+    """Card KPI simples (mesmo estilo dos indicadores do topo)."""
+    klass = (value_class + " " + extra).strip()
+    return f'<div class="kpi-container"><div class="kpi-title">{title}</div><div class="{klass}">{value}</div></div>'
+
+
 def _parse_ptbr_num(s):
     """Converte string pt-BR ('100.814', '1.006', '92,1') em float. None se falhar."""
     if s is None:
@@ -785,6 +803,15 @@ def main():
         .proj-table tbody tr:nth-child(even){ background:#FAFCFF; }
         .proj-table tbody tr.atual{ background:var(--blue-soft); }
         .proj-table tbody tr.atual td{ font-weight:800; color:var(--navy); border-top:1px solid #C9DBF7; }
+        /* Mini stat chips (Uninstall Backlog) */
+        .mini-wrap{ display:flex; flex-wrap:wrap; gap:22px; align-items:stretch; margin:2px 0 6px; }
+        .mini-group{ display:flex; flex-direction:column; gap:6px; }
+        .mini-group-title{ font-size:.62rem; color:var(--muted); font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+        .mini-row{ display:flex; flex-wrap:wrap; gap:8px; }
+        .mini-chip{ background:var(--card); border:1px solid var(--line); border-radius:9px; padding:7px 11px; min-width:78px; text-align:center; box-shadow:0 3px 8px rgba(16,40,90,.05); }
+        .mini-chip .n{ font-size:1.1rem; font-weight:800; color:var(--navy); line-height:1.05; }
+        .mini-chip .l{ font-size:.58rem; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.03em; margin-top:3px; }
+        .mini-sep{ width:1px; background:var(--line); align-self:stretch; }
         </style>
     """, unsafe_allow_html=True)
     
@@ -822,14 +849,6 @@ def main():
         df_churn = df_churn_criado_kpi.copy()
         df_active_raw, df_backlog_raw = pd.DataFrame(), pd.DataFrame()
         
-    if churn_view == 'Created':
-        # Non-blocking note (the dashboard still renders on the Created landing view).
-        with st.expander("ℹ️ Important note about the Created Churn view", expanded=False):
-            st.markdown(
-                "After 90 days, RPI work orders are automatically cancelled and the contract "
-                "goes through the sbaff process."
-            )
-
     otl_projections = load_otl_projections_from_excel(otl_projections_file)
     projecao = load_projecao(projecao_file)
 
@@ -994,14 +1013,14 @@ def main():
 
     st.markdown("<br>", unsafe_allow_html=True)
     
-    tabs = st.tabs([
-        "Monthly Churn", "Projection", "Operational Churn", "By Segment",
-        "By Type", "Churn Reasons", "By Franchise",
-        "By Product", "Revenue", "Analytics",
-        "Uninstall Backlog", "Cancellation Intentions"
-    ])
+    tab_names = ["Monthly Churn", "Projection", "Cancellation Intentions", "Uninstall Backlog"]
+    if churn_view == 'Executed':
+        tab_names.append("Operational Churn")  # Operational Churn tab only in the Executed view
+    tab_names += ["By Segment", "By Type", "Churn Reasons", "By Franchise", "By Product", "Revenue", "Analytics"]
+    _tab_objs = st.tabs(tab_names)
+    T = {name: _tab_objs[i] for i, name in enumerate(tab_names)}
     
-    with tabs[0]:
+    with T["Monthly Churn"]:
         st.header(f"Monthly Churn by Year and Variation")
         df_plot_monthly_volume = df_filtered.groupby(['Ano Churn', 'Mes Churn', 'Nome Mes Churn']).agg(Volume_Churn=('Volume', 'sum')).reset_index().sort_values(by=['Ano Churn', 'Mes Churn'])
         df_plot_monthly_volume['Churn_Rate'] = pd.NA
@@ -1022,7 +1041,7 @@ def main():
         fig_monthly_bar_with_variation.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
         st.plotly_chart(aplicar_tema_moderno(fig_monthly_bar_with_variation), use_container_width=True)
 
-    with tabs[1]:
+    with T["Projection"]:
         if not projecao:
             st.header("Closing Projection")
             st.info("No projection found. Run **projecao_churn.py** and copy the generated **projecao_churn.json** into the dashboard folder.")
@@ -1055,29 +1074,27 @@ def main():
             with row1[2]:
                 st.markdown(_proj_card_dual("Total Backlog", cards.get("backlog", {}), target=_tgt_vol("backlog")), unsafe_allow_html=True)
 
-            st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
-            row2 = st.columns(3)
-            with row2[0]:
-                st.markdown(_proj_card_dual("Churn Revenue", cards.get("receita", {}), target=_tgt_money("revenue")), unsafe_allow_html=True)
-            with row2[1]:
-                st.markdown(_proj_card_single(f"{_mes_en(pj.get('nome_mes',''))} Annual Revenue", cards.get("anual", "-"), target=_tgt_money("annual_revenue")), unsafe_allow_html=True)
-            with row2[2]:
-                st.markdown(_proj_card_dual("YTD Churn Revenue", cards.get("ytd", {}), target=_tgt_money("ytd_revenue")), unsafe_allow_html=True)
-
-            # --- Operational Churn (Real vs OTL, abs + %) — sem Target ---
-            st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+            # Operational Churn (Real vs OTL, abs + %) — no Target
             _base_ativa = _parse_ptbr_num(pj.get("base_ativa"))
             _exec_real = _parse_ptbr_num(cards.get("executado", {}).get("real"))
             _bl_path = os.path.join(data_dir, file_backlog_churn)
-            _bl_cur = _backlog_total_mes(_bl_path, pj.get("ano"), pj.get("mes"))
+            # Current backlog = same snapshot the Backlog card shows (from the projection JSON);
+            # previous month's closing backlog comes from the aggregated backlog_churn.xlsx.
+            _bl_cur = _parse_ptbr_num(cards.get("backlog", {}).get("real"))
             _prev_a, _prev_m = (pj.get("ano") - 1, 12) if pj.get("mes") == 1 else (pj.get("ano"), pj.get("mes") - 1)
             _bl_prev = _backlog_total_mes(_bl_path, _prev_a, _prev_m)
             _real_op = (_exec_real + (_bl_cur - _bl_prev)) if (_exec_real is not None and _bl_cur is not None and _bl_prev is not None) else None
             _otl_op = otl_projections.get("OTL Churn Operacional", 0) or None
             def _fmt_abs(v): return f"{int(round(v)):,.0f}".replace(",", ".") if v is not None else "-"
             def _fmt_pct(v): return (f"{v / _base_ativa * 100:.2f}%".replace(".", ",")) if (v is not None and _base_ativa) else ""
-            row3 = st.columns(3)
-            with row3[0]:
+
+            st.markdown("<div style='height:10px;'></div>", unsafe_allow_html=True)
+            row2 = st.columns(3)
+            with row2[0]:
+                st.markdown(_proj_card_dual("Churn Revenue", cards.get("receita", {}), target=_tgt_money("revenue")), unsafe_allow_html=True)
+            with row2[1]:
+                st.markdown(_proj_card_annual_ytd(f"{_mes_en(pj.get('nome_mes',''))} Annual & YTD Revenue", cards.get("anual", "-"), cards.get("ytd", {})), unsafe_allow_html=True)
+            with row2[2]:
                 st.markdown(_proj_card_operational("Operational Churn",
                             _fmt_abs(_real_op), _fmt_pct(_real_op),
                             _fmt_abs(_otl_op), _fmt_pct(_otl_op)), unsafe_allow_html=True)
@@ -1099,7 +1116,8 @@ def main():
                     "</tr></thead><tbody>" + linhas_html + "</tbody></table>",
                     unsafe_allow_html=True)
 
-    with tabs[2]:
+    if "Operational Churn" in T:  # Executed view only
+      with T["Operational Churn"]:
         st.header("Operational Churn Analysis")
         churn_operacional_value, churn_operacional_percentage = "-", "-"
         if churn_view == 'Executed' and not df_backlog_raw.empty and selected_years and selected_months and not df_active_raw.empty:
@@ -1138,15 +1156,15 @@ def main():
                 churn_operacional_value = total_churn_operacional_period
                 if total_active_base_period > 0: churn_operacional_percentage = (churn_operacional_value/total_active_base_period)*100
         else:
-            st.warning("Operational Churn analysis is only available for the 'Executed' view and requires Backlog data, Active Base data, and selected year/month filters.")
-        
+            st.warning("Operational Churn analysis requires Backlog data, Active Base data, and selected year/month filters.")
+
         if isinstance(churn_operacional_percentage, (int, float)):
             display_perc_co = f"{churn_operacional_percentage:.2f}%".replace(".", ",")
             st.metric(label=f"Operational Churn Rate ({', '.join(selected_months)} {', '.join(map(str, selected_years))})", value=display_perc_co)
         else:
             st.metric(label=f"Operational Churn Rate ({', '.join(selected_months)} {', '.join(map(str, selected_years))})", value="-")
 
-    with tabs[3]:
+    with T["By Segment"]:
         st.header(f"Distribution by Client Type")
         pie_color_map = {'CDW': '#0A2A66', 'House Hold': '#60A5FA', 'Other': '#A9C2EB'}
         df_churn_prev = df_filtered[df_filtered['Ano Churn'] == 2025]
@@ -1250,7 +1268,7 @@ def main():
             else: st.info("Could not compute the percentages for the selected filters.")
         else: st.info("This analysis is only available for the 'Executed' view with year 2026 selected and requires active customer base data.")
 
-    with tabs[4]:
+    with T["By Type"]:
         st.header(f"Monthly Churn Volume by Type")
         if 'Tipo de Churn' in df_filtered.columns and not df_filtered['Tipo de Churn'].isnull().all() and df_filtered['Tipo de Churn'].nunique() > 0:
             df_plot_churn_type_monthly = df_filtered.groupby(['Ano Churn', 'Mes Churn', 'Nome Mes Churn', 'Tipo de Churn']).agg(Volume_Churn=('Volume', 'sum')).reset_index()
@@ -1262,7 +1280,7 @@ def main():
             st.plotly_chart(aplicar_tema_moderno(fig_churn_type_monthly_stacked), use_container_width=True)
         else: st.warning("No 'Churn Type' data to display the stacked monthly chart.")
 
-    with tabs[5]:
+    with T["Churn Reasons"]:
         st.header("Cancellation Reasons by Year (26 vs 25)")
         sub_col = 'Churn Sub-Reason (Global)' if 'Churn Sub-Reason (Global)' in df_filtered.columns else 'Categoria4_Motivo'
         rea_col = 'Churn Reason (Global)'
@@ -1293,7 +1311,7 @@ def main():
             else: st.info("No cancellation reason to display with the selected filters.")
         else: st.info("No cancellation reason data found.")
 
-    with tabs[6]:
+    with T["By Franchise"]:
         st.header(f"Churn by Franchise (26 vs 25)")
         if 'Filial' in df_filtered.columns and not df_filtered['Filial'].isnull().all():
             df_curr_clean = df_filtered[df_filtered['Ano Churn'] == 2026].copy()
@@ -1315,7 +1333,7 @@ def main():
             else: st.info("No franchise to display with the selected filters.")
         else: st.info("No franchise data found.")
 
-    with tabs[7]:
+    with T["By Product"]:
         st.header("Churn by Product (26 vs 25)")
         if 'Família' in df_filtered.columns and not df_filtered['Família'].isnull().all():
             df_curr_clean = df_filtered[df_filtered['Ano Churn'] == 2026].copy()
@@ -1339,7 +1357,7 @@ def main():
             else: st.info("No product family to display with the selected filters.")
         else: st.info("No 'Family' data found in the churn files for this analysis.")
 
-    with tabs[8]:
+    with T["Revenue"]:
         st.header("Financial Impact Analysis (Churn)")
         st.info("ℹ️ **Impact calculation:** The displayed value considers revenue lost cumulatively until year-end (e.g., churn in Jan = Value x 12 | churn in Feb = Value x 11).")
         def calculate_revenue_metrics(df_in, group_col):
@@ -1384,7 +1402,7 @@ def main():
             else: st.info("No cancellation reason data found.")
         else: st.info("Reason column not found.")
 
-    with tabs[9]:
+    with T["Analytics"]:
         st.header("Advanced Analytics")
         if check_password():
             st.caption("The analyses below use the filters selected in the sidebar (Client Type and Churn Type).")
@@ -1507,7 +1525,7 @@ def main():
             st.caption("Insight quality depends on the amount and quality of available data.")
 
     # ============================ UNINSTALL BACKLOG ============================
-    with tabs[10]:
+    with T["Uninstall Backlog"]:
         st.header("Uninstall Backlog — Executive View")
         df_bl_det = load_backlog_detalhado(os.path.join(data_dir, backlog_detalhado_file))
         if df_bl_det.empty:
@@ -1521,54 +1539,69 @@ def main():
             volun = total_cases - invol
             over90 = int((pd.to_numeric(df_bl_det['Aging_Dias'], errors='coerce') > 90).sum())
             k1, k2, k3, k4 = st.columns(4)
-            with k1: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Total Backlog Cases</div><div class="kpi-value">{total_cases:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
-            with k2: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Involuntary</div><div class="kpi-value">{invol:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
-            with k3: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Voluntary</div><div class="kpi-value">{volun:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
-            with k4: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Aging &gt; 90 days</div><div class="kpi-value negative">{over90:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
+            with k1: st.markdown(_kpi_box("Total Backlog Cases", f"{total_cases:,.0f}".replace(",", ".")), unsafe_allow_html=True)
+            with k2: st.markdown(_kpi_box("Involuntary", f"{invol:,.0f}".replace(",", ".")), unsafe_allow_html=True)
+            with k3: st.markdown(_kpi_box("Voluntary", f"{volun:,.0f}".replace(",", ".")), unsafe_allow_html=True)
+            with k4: st.markdown(_kpi_box("Aging > 90 days", f"{over90:,.0f}".replace(",", "."), extra="negative"), unsafe_allow_html=True)
 
+            # Compact chips: Case Status + Churn Type on the same line, grouped by subject
             st.markdown("<br>", unsafe_allow_html=True)
-            c_left, c_right = st.columns(2)
-            with c_left:
-                st.subheader("By Case Status")
-                df_status = df_bl_det.groupby('Status da OS').size().reset_index(name='Cases').sort_values('Cases', ascending=False)
-                fig_status = px.bar(df_status, x='Cases', y='Status da OS', orientation='h', text='Cases',
-                                    labels={'Status da OS': 'Case Status', 'Cases': 'Cases'})
-                fig_status.update_layout(yaxis={'categoryorder': 'total ascending'})
-                st.plotly_chart(aplicar_tema_moderno(fig_status), use_container_width=True)
-            with c_right:
-                st.subheader("By Churn Type")
-                df_type = df_bl_det.groupby('Tipo de Churn').size().reset_index(name='Cases')
-                fig_type = px.pie(df_type, values='Cases', names='Tipo de Churn', hole=0.5)
-                fig_type.update_traces(textinfo='percent+label', pull=[0.04] * len(df_type))
-                fig_type.update_layout(showlegend=False)
-                st.plotly_chart(aplicar_tema_moderno(fig_type), use_container_width=True)
+            def _chips(series):
+                vc = series.value_counts()
+                return "".join(f"<div class='mini-chip'><div class='n'>{int(v)}</div><div class='l'>{str(k)}</div></div>" for k, v in vc.items())
+            chips_html = (
+                "<div class='mini-wrap'>"
+                "<div class='mini-group'><div class='mini-group-title'>Case Status</div>"
+                f"<div class='mini-row'>{_chips(df_bl_det['Status da OS'])}</div></div>"
+                "<div class='mini-sep'></div>"
+                "<div class='mini-group'><div class='mini-group-title'>Churn Type</div>"
+                f"<div class='mini-row'>{_chips(df_bl_det['Tipo de Churn'])}</div></div>"
+                "</div>"
+            )
+            st.markdown(chips_html, unsafe_allow_html=True)
 
-            c_left2, c_right2 = st.columns(2)
-            with c_left2:
-                st.subheader("Creation Aging")
-                aging_order = ["0-30 days", "31-60 days", "61-90 days", ">90 days", "Unknown"]
-                df_aging = df_bl_det.groupby('Aging_Faixa').size().reindex(aging_order).dropna().reset_index()
-                df_aging.columns = ['Aging', 'Cases']
-                df_aging['Cases'] = df_aging['Cases'].astype(int)
-                fig_aging = px.bar(df_aging, x='Aging', y='Cases', text='Cases',
-                                   category_orders={'Aging': aging_order}, labels={'Cases': 'Cases'})
-                fig_aging.update_traces(textposition='outside')
-                st.plotly_chart(aplicar_tema_moderno(fig_aging), use_container_width=True)
-            with c_right2:
-                st.subheader("Top Franchises")
-                df_fr = df_bl_det.groupby('Nome da Franquia').size().reset_index(name='Cases').sort_values('Cases', ascending=False).head(15)
-                fig_fr = px.bar(df_fr, x='Cases', y='Nome da Franquia', orientation='h', text='Cases',
-                                labels={'Nome da Franquia': 'Franchise', 'Cases': 'Cases'})
-                fig_fr.update_layout(yaxis={'categoryorder': 'total ascending'})
-                st.plotly_chart(aplicar_tema_moderno(fig_fr), use_container_width=True)
+            # Creation Aging -> table
+            st.markdown("<br>", unsafe_allow_html=True)
+            st.subheader("Creation Aging")
+            aging_order = ["0-30 days", "31-60 days", "61-90 days", ">90 days", "Unknown"]
+            s_ag = df_bl_det['Aging_Faixa'].value_counts().reindex(aging_order).dropna().astype(int)
+            df_aging = s_ag.reset_index()
+            df_aging.columns = ['Aging', 'Cases']
+            _tot_ag = int(df_aging['Cases'].sum())
+            df_aging['%'] = df_aging['Cases'].map(lambda x: (f"{x / _tot_ag * 100:.1f}%".replace(".", ",")) if _tot_ag else "-")
+            st.dataframe(df_aging, use_container_width=True, hide_index=True)
 
-            with st.expander("Franchise breakdown (table)"):
-                df_fr_full = df_bl_det.groupby('Nome da Franquia').size().reset_index(name='Cases').sort_values('Cases', ascending=False)
-                df_fr_full = df_fr_full.rename(columns={'Nome da Franquia': 'Franchise'})
-                st.dataframe(df_fr_full, use_container_width=True, hide_index=True)
+            # Franchise x Case Status (all franchises)
+            st.subheader("By Franchise & Case Status")
+            piv = pd.crosstab(df_bl_det['Nome da Franquia'], df_bl_det['Status da OS'])
+            piv['Total'] = piv.sum(axis=1)
+            piv = piv.sort_values('Total', ascending=False).reset_index().rename(columns={'Nome da Franquia': 'Franchise'})
+            st.dataframe(piv, use_container_width=True, hide_index=True)
+
+            # Franchise-level extract
+            st.subheader("Franchise Extract")
+            franquias_all = sorted([f for f in df_bl_det['Nome da Franquia'].dropna().unique()])
+            sel_fr = st.multiselect("Select one or more franchises", franquias_all, key="bl_fr_sel")
+            if sel_fr:
+                df_sel = df_bl_det[df_bl_det['Nome da Franquia'].isin(sel_fr)]
+                t = len(df_sel)
+                iv = int((df_sel['Tipo de Churn'].astype(str).str.upper().str.startswith('INVOL')).sum())
+                vv = t - iv
+                o90 = int((pd.to_numeric(df_sel['Aging_Dias'], errors='coerce') > 90).sum())
+                f1, f2, f3, f4 = st.columns(4)
+                with f1: st.markdown(_kpi_box("Cases (selection)", f"{t:,.0f}".replace(",", ".")), unsafe_allow_html=True)
+                with f2: st.markdown(_kpi_box("Involuntary", f"{iv:,.0f}".replace(",", ".")), unsafe_allow_html=True)
+                with f3: st.markdown(_kpi_box("Voluntary", f"{vv:,.0f}".replace(",", ".")), unsafe_allow_html=True)
+                with f4: st.markdown(_kpi_box("Aging > 90 days", f"{o90:,.0f}".replace(",", "."), extra="negative"), unsafe_allow_html=True)
+                cols_extract = [c for c in ['Número do Caso', 'Case.Account.Name', 'Nome da Franquia', 'Status da OS',
+                                            'Tipo de Churn', 'Case.CreatedDate', 'Aging_Dias', 'Aging_Faixa'] if c in df_sel.columns]
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.dataframe(df_sel[cols_extract], use_container_width=True, hide_index=True)
+            else:
+                st.caption("Select one or more franchises above to see their KPIs and a case-level extract.")
 
     # ========================= CANCELLATION INTENTIONS =========================
-    with tabs[11]:
+    with T["Cancellation Intentions"]:
         st.header("Cancellation Intentions — Retention Funnel")
         groups_cfg = load_group_config(config_file)
         df_ret = load_retention_data(URL_RETENCAO, WORKSHEET_RETENCAO, tuple(groups_cfg.get("corporativo", [])))
@@ -1581,15 +1614,19 @@ def main():
         else:
             scope = st.radio(
                 "Group filter",
-                ("All existing groups", "Corporate"),
+                ("House Hold", "CDW", "All"),
                 horizontal=True,
-                help="'All existing groups' = the 4 original retention groups. 'Corporate' = the new group (usuarios_corporativo in config.json).",
+                help="House Hold = the 4 original retention groups. CDW = the new Corporate group (usuarios_corporativo in config.json). All = both.",
             )
-            grupo_key = "Corporate" if scope == "Corporate" else "Existing"
-            seg_cliente = "CDW" if scope == "Corporate" else "House Hold"
+            if scope == "CDW":
+                grupos, segmentos = ["Corporate"], ["CDW"]
+            elif scope == "House Hold":
+                grupos, segmentos = ["Existing"], ["House Hold"]
+            else:
+                grupos, segmentos = ["Existing", "Corporate"], ["House Hold", "CDW"]
 
             sel_month_nums = [month_order_num_pt.index(m) + 1 for m in selected_months if m in month_order_num_pt]
-            df_scope = df_ret[(df_ret["Grupo"] == grupo_key) & (df_ret["Ano"].isin(selected_years)) & (df_ret["Mes"].isin(sel_month_nums))]
+            df_scope = df_ret[(df_ret["Grupo"].isin(grupos)) & (df_ret["Ano"].isin(selected_years)) & (df_ret["Mes"].isin(sel_month_nums))]
 
             retidos = int((df_scope["Status"] == "Retido").sum())
             nao_retidos = int((df_scope["Status"] == "Não Retido").sum())
@@ -1600,41 +1637,47 @@ def main():
             df_cri_scope = df_churn_criado_kpi[
                 (df_churn_criado_kpi["Ano Churn"].isin(selected_years)) &
                 (df_churn_criado_kpi["Nome Mes Churn"].isin(selected_months)) &
-                (df_churn_criado_kpi["Tipo de Cliente"] == seg_cliente)
+                (df_churn_criado_kpi["Tipo de Cliente"].isin(segmentos))
             ]
             ordens_retirada = int(df_cri_scope["Volume"].sum())
 
             _periodo = f"{', '.join(selected_months)} {', '.join(map(str, selected_years))}"
-            st.caption(f"Scope: **{scope}** ({seg_cliente} segment for uninstall orders) — Period: {_periodo}")
+            st.caption(f"Scope: **{scope}** — Period: {_periodo}")
 
             m1, m2, m3, m4, m5 = st.columns(5)
-            with m1: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Cancellation Intentions</div><div class="kpi-value">{intencoes:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
-            with m2: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Retained</div><div class="kpi-value positive">{retidos:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
-            with m3: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Not Retained</div><div class="kpi-value negative">{nao_retidos:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
-            with m4: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Uninstall Orders Opened</div><div class="kpi-value">{ordens_retirada:,.0f}</div></div>""".replace(",", "."), unsafe_allow_html=True)
-            with m5: st.markdown(f"""<div class="kpi-container"><div class="kpi-title">Conversion</div><div class="kpi-value-small">{conversao:.2f}%</div></div>""".replace(".", ","), unsafe_allow_html=True)
+            with m1: st.markdown(_kpi_box("Cancellation Intentions", f"{intencoes:,.0f}".replace(",", ".")), unsafe_allow_html=True)
+            with m2: st.markdown(_kpi_box("Retained", f"{retidos:,.0f}".replace(",", "."), extra="positive"), unsafe_allow_html=True)
+            with m3: st.markdown(_kpi_box("Not Retained", f"{nao_retidos:,.0f}".replace(",", "."), extra="negative"), unsafe_allow_html=True)
+            with m4: st.markdown(_kpi_box("Uninstall Orders Opened", f"{ordens_retirada:,.0f}".replace(",", ".")), unsafe_allow_html=True)
+            with m5: st.markdown(_kpi_box("Conversion", f"{conversao:.2f}%".replace(".", ","), value_class="kpi-value-small"), unsafe_allow_html=True)
 
+            # Extract: Top 10 cancellation reasons + Top 10 by client (from Not Retained)
             st.markdown("<br>", unsafe_allow_html=True)
-            df_month = df_ret[(df_ret["Grupo"] == grupo_key) & (df_ret["Ano"].isin(selected_years))].copy()
-            if not df_month.empty:
-                st.subheader("Monthly Evolution")
-                month_names_map = {1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June", 7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December"}
-                g = df_month.groupby("Mes").agg(
-                    Retained=("Status", lambda s: (s == "Retido").sum()),
-                    Not_Retained=("Status", lambda s: (s == "Não Retido").sum()),
-                ).reset_index()
-                g["Intentions"] = g["Retained"] + g["Not_Retained"]
-                g["Conversion"] = (g["Retained"] / g["Intentions"].replace(0, pd.NA) * 100).fillna(0)
-                g["Month"] = g["Mes"].map(month_names_map)
-                g = g.sort_values("Mes")
-                fig_ev = px.bar(g, x="Month", y=["Retained", "Not_Retained"], barmode="stack",
-                                category_orders={"Month": month_order_num_pt},
-                                labels={"value": "Cancellation Intentions", "variable": "Status", "Month": "Month"})
-                fig_ev.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1))
-                st.plotly_chart(aplicar_tema_moderno(fig_ev), use_container_width=True)
-                g_disp = g[["Month", "Intentions", "Retained", "Not_Retained", "Conversion"]].copy()
-                g_disp["Conversion"] = g_disp["Conversion"].map(lambda x: f"{x:.2f}%".replace(".", ","))
-                st.dataframe(g_disp, use_container_width=True, hide_index=True)
+            df_nr = df_scope[df_scope["Status"] == "Não Retido"]
+            ex1, ex2 = st.columns(2)
+            with ex1:
+                st.subheader("Top 10 Cancellation Reasons")
+                if "Categoria2Motivo" in df_nr.columns and not df_nr.empty:
+                    tr = df_nr["Categoria2Motivo"].astype(str).str.strip()
+                    tr = tr[~tr.str.lower().isin(['', 'nan', 'none'])]
+                    if not tr.empty:
+                        top_r = tr.value_counts().head(10).reset_index()
+                        top_r.columns = ["Cancellation Reason", "Cases"]
+                        st.dataframe(top_r, use_container_width=True, hide_index=True)
+                    else: st.caption("No cancellation reasons for this scope/period.")
+                else: st.caption("No cancellation reasons for this scope/period.")
+            with ex2:
+                st.subheader("Top 10 Cancellations by Client")
+                client_col = next((c for c in ["Cliente", "Account.Name", "Conta", "Nome Cliente", "ID_Contrato"] if c in df_nr.columns), None)
+                if client_col and not df_nr.empty:
+                    tc = df_nr[client_col].astype(str).str.strip()
+                    tc = tc[~tc.str.lower().isin(['', 'nan', 'none'])]
+                    if not tc.empty:
+                        top_c = tc.value_counts().head(10).reset_index()
+                        top_c.columns = ["Client" if client_col != "ID_Contrato" else "Contract (ID)", "Cases"]
+                        st.dataframe(top_c, use_container_width=True, hide_index=True)
+                    else: st.caption("No client data for this scope/period.")
+                else: st.caption("No client data for this scope/period.")
 
             resumo_txt = (
                 f"Cancellation Intentions — {scope}\n"
