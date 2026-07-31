@@ -22,7 +22,7 @@
 [2026-07]
 executed = 1100
 created = 1600
-backlog = 2500
+backlog = 2600
 revenue = 90000
 annual_revenue = 90000
 ytd_revenue = 12300000
